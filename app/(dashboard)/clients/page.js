@@ -15,10 +15,48 @@ import {
     Search
 } from 'lucide-react';
 import AddClientModal from '@/components/modals/AddClientModal';
+import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal';
+import axios from 'axios';
 
 export default function ClientsPage() {
     const { clients, allTransactions, loading, refreshData, searchQuery } = useData();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [selectedClient, setSelectedClient] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleEdit = (client) => {
+        setSelectedClient(client);
+        setIsAddModalOpen(true);
+    };
+
+    const handleDeleteClick = (client) => {
+        setSelectedClient(client);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!selectedClient) return;
+        setIsSubmitting(true);
+        const token = localStorage.getItem('token');
+        try {
+            await axios.delete(`/api/clients/${selectedClient.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            refreshData();
+            setIsDeleteModalOpen(false);
+            setSelectedClient(null);
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to delete client');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const closeAddModal = () => {
+        setIsAddModalOpen(false);
+        setSelectedClient(null);
+    };
 
     const enrichedClients = useMemo(() => {
         return clients.map(client => {
@@ -141,7 +179,14 @@ export default function ClientsPage() {
                                             </div>
                                             <div>
                                                 <div className="client-name">{client.name}</div>
-                                                <div className="client-id">ID: #CL-{1000 + client.id}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="client-id">ID: #CL-{1000 + client.id}</div>
+                                                    {client.contact_person && (
+                                                        <div className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 bg-slate-100 rounded">
+                                                            {client.contact_person}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -162,9 +207,25 @@ export default function ClientsPage() {
                                         </div>
                                     </td>
                                     <td className="text-right">
-                                        <a href={`/clients/${client.id}`} className="action-link">
-                                            View Details
-                                        </a>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <a href={`/clients/${client.id}`} className="action-link mr-3">
+                                                View Details
+                                            </a>
+                                            <button
+                                                onClick={() => handleEdit(client)}
+                                                className="action-icon-btn action-icon-btn-edit"
+                                                title="Edit Client"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteClick(client)}
+                                                className="action-icon-btn action-icon-btn-delete"
+                                                title="Delete Client"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -175,8 +236,20 @@ export default function ClientsPage() {
 
             <AddClientModal
                 isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
+                onClose={closeAddModal}
                 onClientAdded={refreshData}
+                client={selectedClient}
+            />
+
+            <DeleteConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Delete Client"
+                message={`Are you sure you want to delete ${selectedClient?.name}? This will remove all their records from the system.`}
+                loading={isSubmitting}
+                isBlocked={selectedClient?.txCount > 0}
+                blockedMessage={`Cannot delete ${selectedClient?.name} because they have ${selectedClient?.txCount} existing transactions. Please delete all transactions for this client first.`}
             />
         </div>
     );

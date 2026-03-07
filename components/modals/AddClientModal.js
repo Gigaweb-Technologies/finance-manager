@@ -4,8 +4,15 @@ import React, { useState } from 'react';
 import { X, User, Mail, Phone, MapPin, Contact, Camera, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
-const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
-    const [form, setForm] = useState({
+const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
+    const [form, setForm] = useState(client ? {
+        name: client.name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        address: client.address || '',
+        contact_person: client.contact_person || '',
+        photo_url: client.photo_url || ''
+    } : {
         name: '',
         email: '',
         phone: '',
@@ -26,13 +33,22 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
         setError('');
         const token = localStorage.getItem('token');
         try {
-            const res = await axios.post('/api/clients', form, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            onClientAdded(res.data);
+            if (client) {
+                // Update existing client
+                const res = await axios.put(`/api/clients/${client.id}`, form, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                onClientAdded(res.data);
+            } else {
+                // Add new client
+                const res = await axios.post('/api/clients', form, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                onClientAdded(res.data);
+            }
             onClose();
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to add client');
+            setError(err.response?.data?.error || `Failed to ${client ? 'update' : 'add'} client`);
         } finally {
             setLoading(false);
         }
@@ -42,7 +58,9 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
         <div className="modal-overlay modal-overlay-blur">
             <div className="modal-premium animate-fade">
                 <div className="modal-header-premium">
-                    <h3 className="font-bold text-base tracking-tight">Add New Client</h3>
+                    <h3 className="font-bold text-base tracking-tight">
+                        {client ? 'Edit Client Details' : 'Add New Client'}
+                    </h3>
                     <button onClick={onClose} className="hover:opacity-70 transition-opacity">
                         <X size={20} />
                     </button>
@@ -125,7 +143,7 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
                                 disabled={loading}
                                 className="btn-premium btn-primary-premium flex-1 justify-center shadow-lg shadow-violet-100"
                             >
-                                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Register Client'}
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : (client ? 'Save Changes' : 'Register Client')}
                             </button>
                             <button
                                 type="button"

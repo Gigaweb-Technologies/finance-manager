@@ -19,12 +19,47 @@ import {
     SlidersHorizontal,
     Clock,
     ChevronDown,
-    MoreHorizontal
+    MoreHorizontal,
+    Edit,
+    Trash2
 } from 'lucide-react';
+import DeleteConfirmationModal from '@/components/modals/DeleteConfirmationModal';
+import EditTransactionModal from '@/components/modals/EditTransactionModal';
+import axios from 'axios';
 
 export default function TransactionsPage() {
     const { clients, allTransactions, loading, searchQuery, refreshData } = useData();
     const [activeModal, setActiveModal] = useState(null);
+    const [selectedTx, setSelectedTx] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleEdit = (tx) => {
+        setSelectedTx(tx);
+        setActiveModal('edit');
+    };
+
+    const handleDeleteClick = (tx) => {
+        setSelectedTx(tx);
+        setActiveModal('delete');
+    };
+
+    const confirmDelete = async () => {
+        if (!selectedTx) return;
+        setIsSubmitting(true);
+        const token = localStorage.getItem('token');
+        try {
+            await axios.delete(`/api/transactions/${selectedTx.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            refreshData();
+            setActiveModal(null);
+            setSelectedTx(null);
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to delete transaction');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const filteredTransactions = useMemo(() => {
         return allTransactions.filter(t =>
@@ -231,9 +266,22 @@ export default function TransactionsPage() {
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', color: 'var(--text-muted)' }}>
-                    <div style={{ display: 'inline-flex', padding: '0.4rem', borderRadius: '8px', cursor: 'pointer' }} className="hover:bg-slate-50 transition-colors">
-                        <MoreHorizontal className="action-dots" size={18} />
+                  <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
+                    <div className="flex items-center justify-end gap-1">
+                        <button
+                            onClick={() => handleEdit(tx)}
+                            className="action-icon-btn action-icon-btn-edit"
+                            title="Edit Transaction"
+                        >
+                            <Edit size={16} />
+                        </button>
+                        <button
+                            onClick={() => handleDeleteClick(tx)}
+                            className="action-icon-btn action-icon-btn-delete"
+                            title="Delete Transaction"
+                        >
+                            <Trash2 size={16} />
+                        </button>
                     </div>
                   </td>
                 </tr>
@@ -246,6 +294,23 @@ export default function TransactionsPage() {
             onClose={() => setActiveModal(null)}
             clients={clients}
             onTransactionsAdded={refreshData}
+        />
+
+        <EditTransactionModal
+            isOpen={activeModal === 'edit'}
+            onClose={() => { setActiveModal(null); setSelectedTx(null); }}
+            transaction={selectedTx}
+            clients={clients}
+            onTransactionUpdated={refreshData}
+        />
+
+        <DeleteConfirmationModal
+            isOpen={activeModal === 'delete'}
+            onClose={() => { setActiveModal(null); setSelectedTx(null); }}
+            onConfirm={confirmDelete}
+            title="Delete Transaction"
+            message="Are you sure you want to delete this transaction? This will reverse its impact on the client's balance."
+            loading={isSubmitting}
         />
       </div>
     );
