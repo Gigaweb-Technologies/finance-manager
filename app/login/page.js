@@ -36,27 +36,32 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="auth-overlay">
-            <div className="auth-card animate-fade">
-                <div className="auth-header">
-                    <div className="sidebar-logo justify-center mb-4">
+        <div className="auth-page-wrapper">
+            <div className="glass-card animate-fade">
+                <div className="auth-header-premium">
+                    <div className="sidebar-logo justify-center mb-6">
                         <div className="sidebar-logo-icon">F</div>
-                        <span>FinanceManager</span>
+                        <span>FinanceBridge</span>
                     </div>
-                    <h2>{authMode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
-                    <p>{authMode === 'login' ? 'Sign in to access your dashboard' : 'Start managing your finances today'}</p>
+                    <h2>{authMode === 'login' ? 'Welcome Back' : 'Get Started'}</h2>
+                    <p>{authMode === 'login' ? 'Enter your details to access your dashboard' : 'Join FinanceBridge and manage with ease'}</p>
                 </div>
 
-                {authError && <div className="auth-error-badge">{authError}</div>}
+                {authError && (
+                    <div className="auth-error-badge">
+                        <User size={18} className="flex-shrink-0" />
+                        <span>{authError}</span>
+                    </div>
+                )}
 
-                <form onSubmit={handleAuth}>
-                    <div className="input-group">
-                        <label>Username</label>
-                        <div className="premium-input-wrapper">
+                <form onSubmit={handleAuth} className="auth-form-premium">
+                    <div className="auth-input-group">
+                        <label className="auth-label">Username</label>
+                        <div className="auth-input-wrapper">
                             <User className="input-icon" size={20} />
                             <input
                                 type="text"
-                                placeholder="Enter username"
+                                placeholder="Enter your username"
                                 value={loginForm.username}
                                 onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                                 required
@@ -64,13 +69,13 @@ export default function LoginPage() {
                         </div>
                     </div>
 
-                    <div className="input-group">
-                        <label>Password</label>
-                        <div className="premium-input-wrapper">
+                    <div className="auth-input-group">
+                        <label className="auth-label">Password</label>
+                        <div className="auth-input-wrapper">
                             <Lock className="input-icon" size={20} />
                             <input
                                 type="password"
-                                placeholder="Enter password"
+                                placeholder="••••••••"
                                 value={loginForm.password}
                                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                                 required
@@ -80,18 +85,28 @@ export default function LoginPage() {
 
                     <button
                         type="submit"
-                        className="btn-premium btn-primary-premium w-full justify-center"
+                        className="btn-auth-full"
                         disabled={authLoading}
                     >
-                        {authLoading ? <Loader2 className="animate-spin" size={20} /> : (authMode === 'login' ? 'Sign In' : 'Register')}
+                        {authLoading ? (
+                            <Loader2 className="animate-spin" size={20} />
+                        ) : (
+                            authMode === 'login' ? 'Sign In' : 'Create Account'
+                        )}
                     </button>
                 </form>
 
-                <div className="auth-footer">
+                <div className="auth-footer-premium">
                     {authMode === 'login' ? (
-                        <p>Don't have an account? <span onClick={() => setAuthMode('register')}>Register</span></p>
+                        <p>
+                            Don't have an account? 
+                            <span onClick={() => { setAuthMode('register'); setAuthError(''); }}>Register</span>
+                        </p>
                     ) : (
-                        <p>Already have an account? <span onClick={() => setAuthMode('login')}>Sign In</span></p>
+                        <p>
+                            Already have an account? 
+                            <span onClick={() => { setAuthMode('login'); setAuthError(''); }}>Sign In</span>
+                        </p>
                     )}
                 </div>
             </div>
