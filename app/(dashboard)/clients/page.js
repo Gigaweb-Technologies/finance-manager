@@ -248,8 +248,6 @@ export default function ClientsPage() {
                 title="Delete Client"
                 message={`Are you sure you want to delete ${selectedClient?.name}? This will remove all their records from the system.`}
                 loading={isSubmitting}
-                isBlocked={selectedClient?.txCount > 0}
-                blockedMessage={`Cannot delete ${selectedClient?.name} because they have ${selectedClient?.txCount} existing transactions. Please delete all transactions for this client first.`}
             />
         </div>
     );

@@ -126,6 +126,7 @@
 .hover\:rotate-90:hover { transform: rotate(90deg); }
 .hover\:border-violet-400:hover { border-color: #a78bfa; }
 .shadow-red-100 { box-shadow: var(--shadow-red-100); }
+.shadow-violet-100 { box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.1); }
 .fill-currentColor { fill: currentColor; }
 
 
@@ -818,6 +819,104 @@ body {
 
 .btn-delete-keep:hover {
   background-color: #fef2f2;
+}
+
+/* Edit Client Modal Specifics */
+.edit-modal-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+  display: block;
+}
+
+.edit-modal-input-wrapper {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 52px;
+  transition: all 0.2s;
+}
+
+.edit-modal-input-wrapper:focus-within {
+  border-color: #7c3aed;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.05);
+}
+
+.edit-modal-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.edit-modal-input {
+  background: transparent;
+  border: none;
+  width: 100%;
+  height: 100%;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+  outline: none;
+}
+
+.edit-modal-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.edit-modal-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 2rem;
+}
+
+.btn-save-changes {
+  background-color: #7c3aed;
+  color: white;
+  padding: 0.875rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-save-changes:hover {
+  background-color: #6d28d9;
+  transform: translateY(-1px);
+}
+
+.btn-keep-record {
+  background-color: white;
+  color: #6d28d9;
+  padding: 0.875rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  border: 1.5px solid #6d28d9;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-keep-record:hover {
+  background-color: #f5f3ff;
 }
 
 .action-icon-btn:active {
