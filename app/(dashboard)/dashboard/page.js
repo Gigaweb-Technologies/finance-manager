@@ -51,11 +51,11 @@ export default function DashboardPage() {
         const txRate = latestTx?.exchange_rate || 415.50;
 
         return {
-            totalNgnInflow: 42500000, // Hardcoded for demo to match design exactly if needed, or use stats.totalNgnInflow
+            totalNgnInflow: totalNgnInflow,
             monthInflow,
             inflowGrowth,
-            totalAedOutflow: 8920000,
-            totalAedLiabilities: 1240500,
+            totalAedOutflow: totalAedOutflow,
+            totalAedLiabilities: totalAedLiabilities,
             txRate
         };
     }, [allTransactions, clients]);

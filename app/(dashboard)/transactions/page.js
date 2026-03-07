@@ -47,11 +47,11 @@ export default function TransactionsPage() {
         const payoutPercentage = totalTransactionsCount ? ((totalPayoutsCount / totalTransactionsCount) * 100).toFixed(1) : 0;
 
         return {
-            totalTransactions: totalTransactionsCount || 1284,
-            totalInflows: totalInflowsCount || 892,
-            inflowPercentage: inflowPercentage || 69.5,
-            totalPayouts: totalPayoutsCount || 392,
-            payoutPercentage: payoutPercentage || 30.5,
+            totalTransactions: totalTransactionsCount,
+            totalInflows: totalInflowsCount,
+            inflowPercentage: inflowPercentage,
+            totalPayouts: totalPayoutsCount,
+            payoutPercentage: payoutPercentage,
             pendingReview: pendingReviewCount
         };
     }, [filteredTransactions]);

@@ -27,8 +27,8 @@ const Header = () => {
 
                 <div className="user-profile-header">
                     <div className="user-info">
-                        <span className="user-name">{user?.full_name || 'Alex Morgan'}</span>
-                        <span className="user-role">{user?.department || 'Admin Manager'}</span>
+                        <span className="user-name">{user?.full_name || 'User'}</span>
+                        <span className="user-role">{user?.department || ''}</span>
                     </div>
                     <div className="user-avatar">
                         {user?.photo_url ? (
