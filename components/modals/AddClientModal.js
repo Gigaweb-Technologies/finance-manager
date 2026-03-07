@@ -42,18 +42,18 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
         <div className="modal-overlay modal-overlay-blur">
             <div className="modal-premium animate-fade">
                 <div className="modal-header-premium">
-                    <h3 className="font-bold text-lg">Add New Client</h3>
-                    <button onClick={onClose} className="hover:rotate-90 transition-transform">
-                        <X size={24} />
+                    <h3 className="font-bold text-base tracking-tight">Add New Client</h3>
+                    <button onClick={onClose} className="hover:opacity-70 transition-opacity">
+                        <X size={20} />
                     </button>
                 </div>
 
                 <div className="modal-body-premium">
                     {error && <div className="auth-error-badge mb-4">{error}</div>}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="input-group">
-                            <label>Full Name *</label>
+                    <form onSubmit={handleSubmit} className="modal-form-premium">
+                        <div className="payout-field-group">
+                            <label className="payout-label">Full Name *</label>
                             <div className="premium-input-wrapper">
                                 <User className="input-icon" size={18} />
                                 <input
@@ -67,8 +67,8 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
                         </div>
 
                         <div className="modal-grid-premium">
-                            <div className="input-group">
-                                <label>Email Address</label>
+                            <div className="payout-field-group">
+                                <label className="payout-label">Email Address</label>
                                 <div className="premium-input-wrapper">
                                     <Mail className="input-icon" size={18} />
                                     <input
@@ -79,8 +79,8 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
                                     />
                                 </div>
                             </div>
-                            <div className="input-group">
-                                <label>Phone Number</label>
+                            <div className="payout-field-group">
+                                <label className="payout-label">Phone Number</label>
                                 <div className="premium-input-wrapper">
                                     <Phone className="input-icon" size={18} />
                                     <input
@@ -93,8 +93,8 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
                             </div>
                         </div>
 
-                        <div className="input-group">
-                            <label>Office Address</label>
+                        <div className="payout-field-group">
+                            <label className="payout-label">Office Address</label>
                             <div className="premium-input-wrapper">
                                 <MapPin className="input-icon" size={18} />
                                 <input
@@ -106,8 +106,8 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
                             </div>
                         </div>
 
-                        <div className="input-group">
-                            <label>Contact Person</label>
+                        <div className="payout-field-group">
+                            <label className="payout-label">Contact Person</label>
                             <div className="premium-input-wrapper">
                                 <Contact className="input-icon" size={18} />
                                 <input
@@ -119,20 +119,20 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded }) => {
                             </div>
                         </div>
 
-                        <div className="pt-6 border-t border-slate-100 flex gap-4">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="btn-premium border border-slate-200 bg-white text-slate-600 flex-1 justify-center"
-                            >
-                                Cancel
-                            </button>
+                        <div className="modal-actions-premium">
                             <button
                                 type="submit"
                                 disabled={loading}
                                 className="btn-premium btn-primary-premium flex-1 justify-center shadow-lg shadow-violet-100"
                             >
                                 {loading ? <Loader2 className="animate-spin" size={20} /> : 'Register Client'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="btn-premium border border-slate-200 bg-white text-slate-600 flex-1 justify-center"
+                            >
+                                Cancel
                             </button>
                         </div>
                     </form>

@@ -44,3 +44,8 @@ next-env.d.ts
 *.db
 *.db-journal
 *.sqlite
+
+# legacy and scratch
+/legacy/
+capture-modal.js
+capture-txn.js

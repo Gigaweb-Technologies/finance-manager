@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { authenticateToken } from '@/lib/auth';
-import pdf from 'pdf-parse';
 import { normalizeSenderName, generateDeterministicId } from '@/lib/statement-processor';
+import path from 'path';
+
+// Using internal lib path for legacy pdf-parse to bypass index.js debug bug
+const pdf = require('pdf-parse/lib/pdf-parse.js');
 
 export async function POST(request) {
     const user = authenticateToken(request);
@@ -10,15 +13,29 @@ export async function POST(request) {
 
     try {
         const formData = await request.formData();
-        const file = formData.get('statement');
+        const file = formData.get('statement'); // Match frontend field name
 
         if (!file) {
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
-        const data = await pdf(buffer);
+        
+        // Use the legacy PDFParse API (much simpler, no workers needed)
+        let data;
+        try {
+            data = await pdf(buffer);
+        } catch (parseError) {
+            console.error("PDF Parsing Error:", parseError);
+            return NextResponse.json({ error: 'Failed to parse PDF: ' + parseError.message }, { status: 500 });
+        }
+        
+        if (!data || !data.text) {
+            return NextResponse.json({ error: 'Could not extract text from PDF' }, { status: 422 });
+        }
+
         const text = data.text;
+        // console.log("Extracted text length:", text.length);
 
         const lines = text.split('\n');
         const extractedTransactions = [];
