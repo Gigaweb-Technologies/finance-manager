@@ -19,7 +19,7 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Invalid password' }, { status: 400 });
         }
 
-        const token = signToken({ id: user.id, username: user.username });
+        const token = signToken({ id: user.id, username: user.username, role: user.role || 'user' });
         return NextResponse.json({
             token,
             user: {
@@ -28,7 +28,8 @@ export async function POST(request) {
                 email: user.email,
                 full_name: user.full_name,
                 department: user.department,
-                photo_url: user.photo_url
+                photo_url: user.photo_url,
+                role: user.role || 'user'
             }
         });
     } catch (err) {

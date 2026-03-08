@@ -4,6 +4,7 @@ import React from 'react';
 import {
     LayoutDashboard,
     Users,
+    UserCog,
     ArrowRightLeft,
     FileText,
     Settings,
@@ -11,16 +12,19 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useData } from '@/lib/DataContext';
 
 const Sidebar = () => {
     const pathname = usePathname();
     const router = useRouter();
+    const { user } = useData();
+    const isAdmin = user?.role === 'admin';
 
     const mainNavItems = [
-        { name: 'Dashboard', icon: <LayoutDashboard size={20} />, href: '/dashboard' },
-        { name: 'Clients', icon: <Users size={20} />, href: '/clients' },
-        { name: 'Reports', icon: <FileText size={20} />, href: '/reports' },
-        { name: 'Transactions', icon: <ArrowRightLeft size={20} />, href: '/transactions' },
+        { name: 'Dashboard',    icon: <LayoutDashboard size={20} />, href: '/dashboard' },
+        { name: 'Clients',      icon: <Users size={20} />,           href: '/clients' },
+        { name: 'Reports',      icon: <FileText size={20} />,        href: '/reports' },
+        { name: 'Transactions', icon: <ArrowRightLeft size={20} />,  href: '/transactions' },
     ];
 
     const handleLogout = () => {
@@ -46,6 +50,17 @@ const Sidebar = () => {
                         <span>{item.name}</span>
                     </Link>
                 ))}
+
+                {isAdmin && (
+                    <Link
+                        href="/users"
+                        className={`nav-item ${pathname === '/users' ? 'active' : ''}`}
+                        style={{ marginTop: '0.25rem' }}
+                    >
+                        <UserCog size={20} />
+                        <span>User Management</span>
+                    </Link>
+                )}
             </nav>
 
             <div className="sidebar-footer">

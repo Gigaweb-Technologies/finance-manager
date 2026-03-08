@@ -10,12 +10,10 @@ export async function GET(request) {
 
     try {
         const row = await db.getAsync(
-            'SELECT id, username, email, full_name, department, photo_url FROM users WHERE id = ?',
+            'SELECT id, username, email, full_name, department, photo_url, role FROM users WHERE id = ?',
             [user.id]
         );
-        if (!row) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
+        if (!row) return NextResponse.json({ error: 'User not found' }, { status: 404 });
         return NextResponse.json(row);
     } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 500 });

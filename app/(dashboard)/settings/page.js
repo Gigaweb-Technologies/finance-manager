@@ -214,9 +214,19 @@ export default function SettingsPage() {
                     {/* ── Profile Tab ──────────────────────────────── */}
                     {activeTab === TAB_PROFILE && (
                         <div>
-                            <div style={{ marginBottom: '2rem' }}>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.2rem' }}>Profile Information</h3>
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Update your account details and profile picture.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.2rem' }}>Profile Information</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Update your account details and profile picture.</p>
+                                </div>
+                                <span style={{
+                                    background: user?.role === 'admin' ? '#f5f3ff' : '#f0fdf4',
+                                    color:      user?.role === 'admin' ? '#7c3aed' : '#16a34a',
+                                    fontWeight: 700, fontSize: '0.75rem',
+                                    padding: '0.3rem 0.85rem', borderRadius: 20
+                                }}>
+                                    {user?.role === 'admin' ? '⚙ Administrator' : '● User'}
+                                </span>
                             </div>
 
                             {/* Avatar section */}
