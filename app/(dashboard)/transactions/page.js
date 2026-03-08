@@ -76,7 +76,7 @@ export default function TransactionsPage() {
 
         // Simulating some pending transactions based on a random string or status if present
         // Since original logic didn't easily have 'pending' status in standard filtered list, let's mock a fixed count or compute it if exists.
-        const pendingReviewCount = filteredTransactions.filter(t => t.status === 'PENDING' || !t.transaction_unique_id).length || 12;
+        const pendingReviewCount = filteredTransactions.filter(t => t.status === 'PENDING' || !t.transaction_unique_id).length;
 
         const inflowPercentage = totalTransactionsCount ? ((totalInflowsCount / totalTransactionsCount) * 100).toFixed(1) : 0;
         const payoutPercentage = totalTransactionsCount ? ((totalPayoutsCount / totalTransactionsCount) * 100).toFixed(1) : 0;
