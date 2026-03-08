@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, TrendingDown, DollarSign, FileText, Loader2, User, AlertCircle } from 'lucide-react';
+import { X, ArrowUpFromLine, Lock, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
@@ -18,7 +18,11 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
 
     const selectedClient = clients.find(c => String(c.id) === String(form.client_id));
     const currentBalance = selectedClient?.balance_aed || 0;
-    const isInsufficient = parseFloat(form.amount_aed) > currentBalance;
+    const disbursAmount = parseFloat(form.amount_aed) || 0;
+    const balanceAfter = currentBalance - disbursAmount;
+    const isInsufficient = disbursAmount > currentBalance;
+
+    const refId = `PAY-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -50,13 +54,24 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
     return (
         <div className="modal-overlay modal-overlay-blur">
             <div className="modal-payout-container animate-fade">
+
+                {/* Header */}
                 <div className="modal-payout-header">
-                    <h3 className="font-bold text-base tracking-tight">Record AED Payout</h3>
-                    <button onClick={onClose} className="hover:opacity-70 transition-opacity">
-                        <X size={20} />
+                    <div className="modal-payout-header-left">
+                        <div className="modal-payout-icon">
+                            <ArrowUpFromLine size={18} />
+                        </div>
+                        <div>
+                            <h3 className="modal-payout-title">Record AED Payout</h3>
+                            <p className="modal-payout-subtitle">Disburse funds from a client wallet</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="modal-payout-close-btn">
+                        <X size={18} />
                     </button>
                 </div>
 
+                {/* Body */}
                 <div className="modal-payout-body">
                     {error && <div className="auth-error-badge mb-6">{error}</div>}
 
@@ -81,13 +96,15 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                             {/* Reference ID */}
                             <div className="payout-field-group">
                                 <label className="payout-label">Reference ID</label>
-                                <input
-                                    type="text"
-                                    className="payout-input"
-                                    value={`PAY-${Math.floor(Math.random() * 100000)}`}
-                                    disabled
-                                    placeholder="Auto-generated"
-                                />
+                                <div className="payout-input-icon-wrapper">
+                                    <input
+                                        type="text"
+                                        className="payout-input payout-input-with-icon"
+                                        value={refId}
+                                        disabled
+                                    />
+                                    <Lock size={14} className="payout-input-icon" />
+                                </div>
                             </div>
 
                             {/* Category */}
@@ -106,7 +123,7 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                                 <input
                                     type="text"
                                     className="payout-input"
-                                    placeholder="Searchable/Select..."
+                                    placeholder="Enter recipient..."
                                     value={form.recipient}
                                     onChange={(e) => setForm({ ...form, recipient: e.target.value })}
                                     required
@@ -115,36 +132,47 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
 
                             {/* Amount AED */}
                             <div className="payout-field-group">
-                                <label className="payout-label">Amount AED</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className="payout-input"
-                                    placeholder="0.00"
-                                    value={form.amount_aed}
-                                    onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
-                                    required
-                                />
+                                <label className="payout-label">Amount (AED)</label>
+                                <div className="payout-amount-wrapper">
+                                    <span className="payout-currency-chip">AED</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        className="payout-input payout-amount-input"
+                                        placeholder="0.00"
+                                        value={form.amount_aed}
+                                        onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
+                                        required
+                                    />
+                                </div>
                             </div>
 
                             {/* Purpose / Notes */}
                             <div className="payout-field-group">
                                 <label className="payout-label">Purpose / Notes</label>
                                 <textarea
-                                    className="payout-input min-h-[44px]"
-                                    rows="1"
-                                    placeholder="TextArea..."
+                                    className="payout-input payout-textarea"
+                                    placeholder="Add a note..."
                                     value={form.description}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                                 />
                             </div>
                         </div>
 
-                        {/* Balance Card */}
+                        {/* Balance Summary Card */}
                         <div className="payout-balance-card">
-                            <div className="payout-balance-label">Current Client AED Balance:</div>
-                            <div className="payout-balance-value">
-                                Balance: {(currentBalance - (parseFloat(form.amount_aed) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
+                            <div className="payout-balance-col">
+                                <div className="payout-balance-label">Current Balance</div>
+                                <div className="payout-balance-value">
+                                    {currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
+                                </div>
+                            </div>
+                            <div className="payout-balance-divider" />
+                            <div className="payout-balance-col">
+                                <div className="payout-balance-label">Balance After Disburse</div>
+                                <div className={`payout-balance-value payout-balance-after ${isInsufficient ? 'payout-balance-danger' : 'payout-balance-accent'}`}>
+                                    {balanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
+                                </div>
                             </div>
                         </div>
 
@@ -156,7 +184,7 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                                 className="btn-payout-confirm"
                             >
                                 {loading && <Loader2 className="inline mr-2 animate-spin" size={16} />}
-                                Confirm & Disburse
+                                Confirm &amp; Disburse
                             </button>
                             <button
                                 type="button"

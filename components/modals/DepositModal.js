@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Plus, DollarSign, FileText, Loader2, ArrowRightLeft } from 'lucide-react';
+import { X, Plus, Lock, ArrowRight, Loader2, ArrowRightLeft } from 'lucide-react';
 import axios from 'axios';
 
 const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
@@ -61,13 +61,25 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
         }
     };
 
+    const refId = `DEP-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
+
     return (
         <div className="modal-overlay modal-overlay-blur">
-            <div className="modal-payout-container animate-fade">
-                <div className="modal-payout-header">
-                    <h3 className="font-bold text-base tracking-tight">Record Client Deposit</h3>
-                    <button onClick={onClose} className="hover:opacity-70 transition-opacity">
-                        <X size={20} />
+            <div className="modal-payout-container animate-fade" style={{ maxWidth: '650px' }}>
+                
+                {/* Header */}
+                <div className="modal-deposit-header">
+                    <div className="modal-deposit-header-left">
+                        <div className="modal-deposit-icon">
+                            <Plus size={20} />
+                        </div>
+                        <div>
+                            <h3 className="modal-deposit-title">Record Client Deposit</h3>
+                            <p className="modal-deposit-subtitle">Credit funds to a client wallet</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="modal-deposit-close-btn">
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -95,22 +107,25 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                             {/* Reference ID */}
                             <div className="payout-field-group">
                                 <label className="payout-label">Reference ID</label>
-                                <input
-                                    type="text"
-                                    className="payout-input"
-                                    value={`DEP-${Math.floor(Math.random() * 100000)}`}
-                                    disabled
-                                    placeholder="Auto-generated"
-                                />
+                                <div className="payout-input-icon-wrapper">
+                                    <input
+                                        type="text"
+                                        className="payout-input payout-input-with-icon"
+                                        value={refId}
+                                        disabled
+                                    />
+                                    <Lock size={14} className="payout-input-icon" />
+                                </div>
                             </div>
 
                             {/* Amount in Naira */}
                             <div className="payout-field-group">
                                 <label className="payout-label">Amount in Naira (NGN)</label>
-                                <div className="payout-input-wrapper">
+                                <div className="payout-amount-wrapper">
+                                    <span className="payout-currency-chip deposit-input-ngn-chip">NGN</span>
                                     <input
                                         type="number"
-                                        className="payout-input"
+                                        className="payout-input payout-amount-input"
                                         placeholder="0.00"
                                         value={form.amount_naira}
                                         onChange={(e) => handleNairaChange(e.target.value)}
@@ -122,44 +137,62 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                             {/* Exchange Rate */}
                             <div className="payout-field-group">
                                 <label className="payout-label">Exchange Rate</label>
-                                <input
-                                    type="number"
-                                    className="payout-input"
-                                    value={form.exchange_rate}
-                                    onChange={(e) => handleRateChange(e.target.value)}
-                                    required
-                                />
+                                <div className="payout-input-icon-wrapper">
+                                    <input
+                                        type="number"
+                                        className="payout-input"
+                                        value={form.exchange_rate}
+                                        onChange={(e) => handleRateChange(e.target.value)}
+                                        required
+                                    />
+                                    <ArrowRightLeft size={14} className="deposit-input-rate-icon" />
+                                </div>
                             </div>
 
-                            {/* Amount AED */}
-                            <div className="payout-field-group">
-                                <label className="payout-label">Amount AED (Credit)</label>
-                                <input
-                                    type="text"
-                                    className="payout-input bg-slate-50"
-                                    value={form.amount_aed || '0.00'}
-                                    disabled
-                                />
+                            {/* Amount AED (Auto-calculated) */}
+                            <div className="payout-field-group" style={{ gridColumn: 'span 2' }}>
+                                <label className="payout-label">Amount AED (Credit) — <span className="text-slate-400 font-normal">Auto-calculated</span></label>
+                                <div className="payout-amount-wrapper" style={{ background: '#f8fafc' }}>
+                                    <span className="payout-currency-chip">AED</span>
+                                    <input
+                                        type="text"
+                                        className="payout-input payout-amount-input"
+                                        value={form.amount_aed || '0.00'}
+                                        disabled
+                                    />
+                                </div>
                             </div>
 
                             {/* Purpose / Proof */}
-                            <div className="payout-field-group">
+                            <div className="payout-field-group" style={{ gridColumn: 'span 2' }}>
                                 <label className="payout-label">Purpose / Proof</label>
                                 <textarea
-                                    className="payout-input min-h-[44px]"
-                                    rows="1"
-                                    placeholder="TextArea..."
+                                    className="payout-input payout-textarea"
+                                    placeholder="Add notes or proof reference..."
                                     value={form.description}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                                 />
                             </div>
                         </div>
 
-                        {/* Credit Card */}
-                        <div className="deposit-balance-card">
-                            <div className="deposit-balance-label">Credit to Client Wallet:</div>
-                            <div className="deposit-balance-value">
-                                Amount: {parseFloat(form.amount_aed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
+                        {/* Conversion Summary Card */}
+                        <div className="deposit-summary-card">
+                            <div className="deposit-summary-col">
+                                <div className="deposit-summary-label">NGN Amount</div>
+                                <div className="deposit-summary-value">
+                                    {parseFloat(form.amount_naira || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN
+                                </div>
+                            </div>
+                            
+                            <div className="deposit-summary-arrow">
+                                <ArrowRight size={18} />
+                            </div>
+
+                            <div className="deposit-summary-col" style={{ alignItems: 'flex-end' }}>
+                                <div className="deposit-summary-label">AED Credited</div>
+                                <div className="deposit-summary-value deposit-summary-value-accent">
+                                    {parseFloat(form.amount_aed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
+                                </div>
                             </div>
                         </div>
 

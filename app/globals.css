@@ -132,9 +132,9 @@
 
 :root {
   /* Colors */
-  --primary-color: #6366f1;
-  /* More Indigo/Purple like design */
-  --primary-hover: #4f46e5;
+  --primary-color: #7c3aed;
+  /* Premium Violet */
+  --primary-hover: #6d28d9;
   --primary-bg: #f5f3ff;
 
   --success-color: #10b981;
@@ -319,13 +319,63 @@ body {
 }
 
 .modal-payout-header {
-  background: #1e1b4b;
-  /* Dark Navy */
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
   color: white;
-  padding: 1.25rem 2rem;
+  padding: 1.4rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.modal-payout-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.modal-payout-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(190, 18, 60, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.modal-payout-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.modal-payout-subtitle {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 0.2rem;
+}
+
+.modal-payout-close-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: rgba(255,255,255,0.8);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.modal-payout-close-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: white;
 }
 
 .modal-payout-body {
@@ -360,6 +410,73 @@ body {
   align-items: center;
 }
 
+/* Reference ID field with lock icon */
+.payout-input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.payout-input-icon-wrapper .payout-input-with-icon {
+  padding-right: 2.5rem;
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.payout-input-icon {
+  position: absolute;
+  right: 0.85rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* Amount AED input with currency chip */
+.payout-amount-wrapper {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.payout-amount-wrapper:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.payout-currency-chip {
+  display: flex;
+  align-items: center;
+  padding: 0 0.85rem;
+  background: var(--primary-bg);
+  border-right: 1px solid #e2e8f0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.payout-amount-input {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.payout-amount-input:focus {
+  outline: none;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.payout-textarea {
+  resize: none;
+  min-height: 44px;
+}
+
 .payout-input {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -389,24 +506,49 @@ body {
 }
 
 .payout-balance-card {
-  background: #f1f5f9;
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 2.5rem;
+  background: #f5f3ff;
+  border: 1px solid #e0d9ff;
+  border-radius: 14px;
+  padding: 1.25rem 1.75rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.payout-balance-col {
+  flex: 1;
+}
+
+.payout-balance-divider {
+  width: 1px;
+  height: 40px;
+  background: #d4caff;
+  flex-shrink: 0;
 }
 
 .payout-balance-label {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  color: #475569;
-  margin-bottom: 0.25rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
 }
 
 .payout-balance-value {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #1e293b;
   letter-spacing: -0.02em;
+}
+
+.payout-balance-accent {
+  color: #4f46e5;
+}
+
+.payout-balance-danger {
+  color: #be123c;
 }
 
 .payout-actions {
@@ -416,8 +558,7 @@ body {
 
 .btn-payout-confirm {
   flex: 1;
-  background: #be123c;
-  /* Deep Red/Maroon */
+  background: var(--primary-color);
   color: white;
   padding: 1rem;
   border-radius: 9999px;
@@ -429,31 +570,154 @@ body {
 }
 
 .btn-payout-confirm:hover {
-  background: #9f1239;
+  background: var(--primary-hover);
 }
 
 .btn-payout-cancel {
   flex: 1;
   background: white;
-  color: #be123c;
+  color: var(--primary-color);
   padding: 1rem;
   border-radius: 9999px;
   font-weight: 700;
   font-size: 0.85rem;
-  border: 1.5px solid #be123c;
+  border: 1.5px solid var(--primary-color);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .btn-payout-cancel:hover {
-  background: #fff1f2;
+  background: var(--primary-bg);
 }
 
 /* Modal Deposit Specifics */
+.modal-deposit-header {
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  color: white;
+  padding: 1.4rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-deposit-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.modal-deposit-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.modal-deposit-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1.2;
+}
+
+.modal-deposit-subtitle {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.7);
+  margin-top: 0.2rem;
+}
+
+.modal-deposit-close-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-deposit-close-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.deposit-input-ngn-chip {
+  background: var(--primary-bg);
+  color: var(--primary-color);
+}
+
+.deposit-input-rate-icon {
+  position: absolute;
+  right: 0.85rem;
+  color: #94a3b8;
+}
+
+.deposit-calc-row {
+  grid-column: span 2;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.deposit-summary-card {
+  background: var(--primary-bg);
+  border: 1px solid #e0d9ff;
+  border-radius: 14px;
+  padding: 1.25rem 1.75rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.deposit-summary-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.deposit-summary-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+
+.deposit-summary-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+}
+
+.deposit-summary-value-accent {
+  color: var(--primary-color);
+}
+
+.deposit-summary-arrow {
+  width: 32px;
+  height: 32px;
+  background: #ede9fe;
+  color: var(--primary-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .btn-deposit-confirm {
   flex: 1;
-  background: #059669;
-  /* Emerald 600 */
+  background: var(--primary-color);
   color: white;
   padding: 1rem;
   border-radius: 9999px;
@@ -465,24 +729,24 @@ body {
 }
 
 .btn-deposit-confirm:hover {
-  background: #047857;
+  background: var(--primary-hover);
 }
 
 .btn-deposit-cancel {
   flex: 1;
   background: white;
-  color: #059669;
+  color: var(--primary-color);
   padding: 1rem;
   border-radius: 9999px;
   font-weight: 700;
   font-size: 0.85rem;
-  border: 1.5px solid #059669;
+  border: 1.5px solid var(--primary-color);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .btn-deposit-cancel:hover {
-  background: #ecfdf5;
+  background: var(--primary-bg);
 }
 
 .deposit-balance-card {
@@ -802,6 +1066,162 @@ body {
 
 .btn-delete-permanent:hover {
   background-color: #be123c;
+}
+
+/* Modal Add/Edit Client Specifics */
+.modal-client-header {
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  color: white;
+  padding: 1.4rem 2.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-client-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.modal-client-icon-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.modal-client-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.1rem;
+}
+
+.modal-client-subtitle {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.7);
+}
+
+.modal-client-close-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-client-close-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.modal-client-body {
+  padding: 2.5rem;
+}
+
+.client-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.client-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.client-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+}
+
+.client-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.client-input-icon {
+  position: absolute;
+  left: 1rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.client-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  background: #fcfdfe;
+  transition: all 0.2s;
+}
+
+.client-input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  outline: none;
+  background: white;
+}
+
+.modal-client-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.btn-client-confirm {
+  background: #7c3aed;
+  color: white;
+  padding: 1rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.15);
+}
+
+.btn-client-confirm:hover {
+  background: #6d28d9;
+}
+
+.btn-client-cancel {
+  background: white;
+  color: #7c3aed;
+  padding: 1rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 1.5px solid #7c3aed;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-client-cancel:hover {
+  background: #f5f3ff;
 }
 
 .btn-delete-keep {
