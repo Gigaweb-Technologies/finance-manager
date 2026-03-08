@@ -1,11 +1,18 @@
 'use client';
 
 import React from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, LogOut } from 'lucide-react';
 import { useData } from '@/lib/DataContext';
+import { useRouter } from 'next/navigation';
 
 const Header = () => {
     const { searchQuery, setSearchQuery, user } = useData();
+    const router = useRouter();
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        router.push('/login');
+    };
 
     return (
         <header className="header-premium">
@@ -43,6 +50,13 @@ const Header = () => {
                             </div>
                         )}
                     </div>
+                    <button 
+                        className="logout-btn-header"
+                        onClick={handleLogout}
+                        title="Log Out"
+                    >
+                        <LogOut size={18} />
+                    </button>
                 </div>
             </div>
         </header>

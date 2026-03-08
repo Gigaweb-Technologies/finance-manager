@@ -7,16 +7,14 @@ import {
     UserCog,
     ArrowRightLeft,
     FileText,
-    Settings,
-    LogOut
+    Settings
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useData } from '@/lib/DataContext';
 
 const Sidebar = () => {
     const pathname = usePathname();
-    const router = useRouter();
     const { user } = useData();
     const isAdmin = user?.role === 'admin';
 
@@ -26,11 +24,6 @@ const Sidebar = () => {
         { name: 'Reports',      icon: <FileText size={20} />,        href: '/reports' },
         { name: 'Transactions', icon: <ArrowRightLeft size={20} />,  href: '/transactions' },
     ];
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        router.push('/login');
-    };
 
     return (
         <aside className="sidebar">
@@ -67,18 +60,10 @@ const Sidebar = () => {
                 <Link
                     href="/settings"
                     className={`nav-item ${pathname === '/settings' ? 'active' : ''}`}
-                    style={{ marginBottom: '0.5rem' }}
                 >
                     <Settings size={20} />
                     <span>Account Settings</span>
                 </Link>
-                <div 
-                    className="nav-item text-rose-500 hover:bg-rose-50"
-                    onClick={handleLogout}
-                >
-                    <LogOut size={20} />
-                    <span>Log Out</span>
-                </div>
             </div>
         </aside>
     );

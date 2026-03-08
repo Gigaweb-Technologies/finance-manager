@@ -1169,6 +1169,29 @@ body {
   border: 1px solid #e5e7eb;
 }
 
+.logout-btn-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+  background-color: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 0.5rem;
+}
+
+.logout-btn-header:hover {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-color: #fecdd3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.05);
+}
+
 /* Dashboard Content */
 .main-wrapper {
   flex: 1;
