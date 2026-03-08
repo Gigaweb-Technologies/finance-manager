@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { User, Lock, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-    const [authMode, setAuthMode] = useState('login');
     const [loginForm, setLoginForm] = useState({ username: '', password: '' });
     const [authError, setAuthError] = useState('');
     const [authLoading, setAuthLoading] = useState(false);
@@ -17,17 +16,10 @@ export default function LoginPage() {
         setAuthError('');
         setAuthLoading(true);
 
-        const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-
         try {
-            const res = await axios.post(endpoint, loginForm);
-            if (authMode === 'login') {
-                localStorage.setItem('token', res.data.token);
-                router.push('/dashboard');
-            } else {
-                setAuthMode('login');
-                setAuthError('Registration successful! Please login.');
-            }
+            const res = await axios.post('/api/auth/login', loginForm);
+            localStorage.setItem('token', res.data.token);
+            router.push('/dashboard');
         } catch (err) {
             setAuthError(err.response?.data?.error || 'Authentication failed');
         } finally {
@@ -43,8 +35,8 @@ export default function LoginPage() {
                         <div className="sidebar-logo-icon">F</div>
                         <span>FinanceBridge</span>
                     </div>
-                    <h2>{authMode === 'login' ? 'Welcome Back' : 'Get Started'}</h2>
-                    <p>{authMode === 'login' ? 'Enter your details to access your dashboard' : 'Join FinanceBridge and manage with ease'}</p>
+                    <h2>Welcome Back</h2>
+                    <p>Enter your details to access your dashboard</p>
                 </div>
 
                 {authError && (
@@ -91,23 +83,15 @@ export default function LoginPage() {
                         {authLoading ? (
                             <Loader2 className="animate-spin" size={20} />
                         ) : (
-                            authMode === 'login' ? 'Sign In' : 'Create Account'
+                            'Sign In'
                         )}
                     </button>
                 </form>
 
-                <div className="auth-footer-premium">
-                    {authMode === 'login' ? (
-                        <p>
-                            Don't have an account? 
-                            <span onClick={() => { setAuthMode('register'); setAuthError(''); }}>Register</span>
-                        </p>
-                    ) : (
-                        <p>
-                            Already have an account? 
-                            <span onClick={() => { setAuthMode('login'); setAuthError(''); }}>Sign In</span>
-                        </p>
-                    )}
+                <div className="auth-footer-premium text-center mt-6">
+                    <p className="text-slate-400 text-xs font-medium">
+                        Access restricted to authorized personnel only.
+                    </p>
                 </div>
             </div>
         </div>
