@@ -109,8 +109,17 @@ export async function POST(request) {
                             currentNarration += ' ' + narrationPart.trim();
 
                             const cn = currentNarration.toUpperCase();
-                            const potentialCredit = cn.includes('FROM') || cn.includes('INFLOW') || cn.includes('CREDIT') || cn.includes('TRANSFER') || cn.includes('TRF');
-                            const isDebit = (cn.includes(' TO ') && !cn.includes('TO BLAZER')) || cn.includes('DEBIT') || cn.includes('FEE') || cn.includes('LEVY') || cn.includes('VAT') || cn.includes('CHARGE') || cn.includes('STAMP') || cn.includes('TAX') || cn.includes('SMS ALERT');
+                            const nl = nextLine.toUpperCase();
+                            const potentialCredit = cn.includes('FROM') || cn.includes('INFLOW') ||
+                                cn.includes('CREDIT') || nl.includes('CREDIT') ||
+                                cn.includes('TRANSFER') || cn.includes('TRF');
+
+                            // Filter out common debit markers and bank charges
+                            const isDebit = (cn.includes(' TO ') && !cn.includes('TO BLAZER')) ||
+                                cn.includes('DEBIT') || cn.includes('CHG') ||
+                                cn.includes('FEE') || cn.includes('LEVY') || cn.includes('VAT') ||
+                                cn.includes('CHARGE') || cn.includes('STAMP') || cn.includes('TAX') ||
+                                cn.includes('SMS ALERT');
 
                             if (potentialCredit && !isDebit) {
                                 const val = parseFloat(amounts[0].replace(/,/g, ''));
