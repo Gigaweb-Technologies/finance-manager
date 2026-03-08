@@ -23,6 +23,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
     const [summary, setSummary] = useState({ success: 0, fail: 0, duplicates: 0 });
     const [error, setError] = useState('');
     const [progress, setProgress] = useState(null); // { current, total }
+    const [pendingDelete, setPendingDelete] = useState(null); // originalIdx of row pending delete, or 'all'
 
     if (!isOpen) return null;
 
@@ -90,15 +91,13 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
     };
 
     const handleRemove = (idx) => {
-        if (window.confirm('Are you sure you want to remove this transaction from the list?')) {
-            setExtractedData(prev => prev.filter((_, i) => i !== idx));
-        }
+        setExtractedData(prev => prev.filter((_, i) => i !== idx));
+        setPendingDelete(null);
     };
 
     const handleClearAll = () => {
-        if (window.confirm('Are you sure you want to clear all extracted transactions?')) {
-            setExtractedData([]);
-        }
+        setExtractedData([]);
+        setPendingDelete(null);
     };
 
     const handleRecord = async () => {
@@ -150,6 +149,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
         setError('');
         setProgress(null);
         setLoading(false);
+        setPendingDelete(null);
         onClose();
     };
 
@@ -334,20 +334,34 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap' }}>
                                                     {(it.amount_naira / parseFloat(rate)).toFixed(2)}
                                                 </td>
-                                                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right' }}>
-                                                    <button
-                                                        onClick={() => handleRemove(it.originalIdx)}
-                                                        style={{
-                                                            background: '#fff1f2', color: '#e11d48',
-                                                            border: '1px solid #fecdd3', borderRadius: 6,
-                                                            padding: '0.3rem 0.5rem', cursor: 'pointer',
-                                                            display: 'inline-flex', alignItems: 'center',
-                                                            transition: 'background 0.15s'
-                                                        }}
-                                                        title="Remove this transaction"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    {pendingDelete === it.originalIdx ? (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>Remove?</span>
+                                                            <button
+                                                                onClick={() => handleRemove(it.originalIdx)}
+                                                                style={{ background: '#e11d48', color: 'white', border: 'none', borderRadius: 5, padding: '0.25rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                            >Yes</button>
+                                                            <button
+                                                                onClick={() => setPendingDelete(null)}
+                                                                style={{ background: '#f1f5f9', color: '#374151', border: 'none', borderRadius: 5, padding: '0.25rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                            >Cancel</button>
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => setPendingDelete(it.originalIdx)}
+                                                            style={{
+                                                                background: '#fff1f2', color: '#e11d48',
+                                                                border: '1px solid #fecdd3', borderRadius: 6,
+                                                                padding: '0.3rem 0.5rem', cursor: 'pointer',
+                                                                display: 'inline-flex', alignItems: 'center',
+                                                                transition: 'background 0.15s'
+                                                            }}
+                                                            title="Remove this transaction"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
