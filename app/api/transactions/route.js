@@ -46,7 +46,8 @@ export async function POST(request) {
             await db.runAsync('COMMIT');
             return NextResponse.json({ success: true, transaction_id: result.lastID });
         } catch (err) {
-            await db.runAsync('ROLLBACK');
+            console.error('Transaction POST error:', err);
+            try { await db.runAsync('ROLLBACK'); } catch (rollbackErr) { console.error('Rollback failed:', rollbackErr); }
             if (err.message.includes('UNIQUE constraint failed')) {
                 return NextResponse.json({ error: 'Transaction already exists' }, { status: 409 });
             }

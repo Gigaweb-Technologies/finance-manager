@@ -63,7 +63,8 @@ export async function PUT(request, { params }) {
             await db.runAsync('COMMIT');
             return NextResponse.json({ success: true });
         } catch (err) {
-            await db.runAsync('ROLLBACK');
+            console.error('Transaction PUT error:', err);
+            try { await db.runAsync('ROLLBACK'); } catch (rollbackErr) { console.error('Rollback failed:', rollbackErr); }
             throw err;
         }
     } catch (err) {
@@ -93,7 +94,8 @@ export async function DELETE(request, { params }) {
             await db.runAsync('COMMIT');
             return NextResponse.json({ success: true });
         } catch (err) {
-            await db.runAsync('ROLLBACK');
+            console.error('Transaction DELETE error:', err);
+            try { await db.runAsync('ROLLBACK'); } catch (rollbackErr) { console.error('Rollback failed:', rollbackErr); }
             throw err;
         }
     } catch (err) {
