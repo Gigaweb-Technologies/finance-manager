@@ -19,14 +19,14 @@ export async function POST(request) {
     if (!user) return NextResponse.json({ error: 'Access denied' }, { status: 401 });
 
     try {
-        const { name, email, phone, address, contact_person, photo_url } = await request.json();
+        const { name, email, phone, address, contact_person, photo_url, currency } = await request.json();
         if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
 
         const result = await db.runAsync(
-            'INSERT INTO clients (name, email, phone, address, contact_person, photo_url) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, email || null, phone || null, address || null, contact_person || null, photo_url || null]
+            'INSERT INTO clients (name, email, phone, address, contact_person, photo_url, currency) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, email || null, phone || null, address || null, contact_person || null, photo_url || null, currency || 'AED']
         );
-        return NextResponse.json({ id: result.lastID, name, balance_aed: 0 });
+        return NextResponse.json({ id: result.lastID, name, balance_aed: 0, currency: currency || 'AED' });
     } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }

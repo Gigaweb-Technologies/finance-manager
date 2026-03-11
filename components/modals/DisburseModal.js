@@ -1,15 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, ArrowUpFromLine, Lock, Loader2 } from 'lucide-react';
+import { X, ArrowUpFromLine, Lock, Loader2, UserPlus, Users } from 'lucide-react';
 import axios from 'axios';
+import { useData } from '@/lib/DataContext';
 
 const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
+    const { recipients, refreshData } = useData();
+    const [recipientMode, setRecipientMode] = useState('select'); // 'select' | 'new'
     const [form, setForm] = useState({
         client_id: '',
         amount_aed: '',
         recipient: '',
-        description: ''
+        description: '',
+        date: new Date().toISOString().split('T')[0]
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -17,6 +21,8 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
     if (!isOpen) return null;
 
     const selectedClient = clients.find(c => String(c.id) === String(form.client_id));
+    const clientRecipients = recipients.filter(r => String(r.client_id) === String(form.client_id));
+
     const currentBalance = selectedClient?.balance_aed || 0;
     const disbursAmount = parseFloat(form.amount_aed) || 0;
     const balanceAfter = currentBalance - disbursAmount;
@@ -24,21 +30,47 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
 
     const refId = `PAY-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
 
+    const handleRecipientSelected = (name) => {
+        setForm({ ...form, recipient: name });
+    };
+
+    const handleClientChange = (clientId) => {
+        const hasRecipients = recipients.some(r => String(r.client_id) === String(clientId));
+        setForm({ ...form, client_id: clientId, recipient: '' });
+        setRecipientMode(hasRecipients ? 'select' : 'new');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.client_id || !form.amount_aed) return setError('Missing required fields');
+        if (!form.client_id || !form.amount_aed || !form.recipient) return setError('Missing required fields');
         if (isInsufficient) return setError('Insufficient balance in client wallet');
 
         setLoading(true);
         setError('');
         const token = localStorage.getItem('token');
         try {
+            // 1. If new recipient, save it first (optional, but requested to link them)
+            if (recipientMode === 'new') {
+                try {
+                    await axios.post('/api/recipients', {
+                        client_id: form.client_id,
+                        name: form.recipient
+                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    refreshData(); // Refresh global recipients list
+                } catch (rErr) {
+                    console.error('Failed to auto-save recipient:', rErr);
+                    // Silently fail recipient save, don't block transaction
+                }
+            }
+
+            // 2. Process transaction
             await axios.post('/api/transactions', {
                 ...form,
                 type: 'OUT',
                 amount_aed: parseFloat(form.amount_aed),
                 amount_naira: 0,
-                exchange_rate: 0
+                exchange_rate: 0,
+                date: form.date
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -83,7 +115,7 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                                 <select
                                     className="payout-input payout-select"
                                     value={form.client_id}
-                                    onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                                    onChange={(e) => handleClientChange(e.target.value)}
                                     required
                                 >
                                     <option value="">Select corporate account...</option>
@@ -117,17 +149,68 @@ const DisburseModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                                 </select>
                             </div>
 
-                            {/* Recipient Name */}
+                            {/* Date Field */}
                             <div className="payout-field-group">
-                                <label className="payout-label">Recipient Name</label>
+                                <label className="payout-label">Transaction Date</label>
                                 <input
-                                    type="text"
+                                    type="date"
                                     className="payout-input"
-                                    placeholder="Enter recipient..."
-                                    value={form.recipient}
-                                    onChange={(e) => setForm({ ...form, recipient: e.target.value })}
-                                    required
+                                    value={form.date}
+                                    onChange={(e) => setForm({ ...form, date: e.target.value })}
                                 />
+                            </div>
+
+                            {/* Recipient Selection */}
+                            <div className="payout-field-group" style={{ gridColumn: 'span 2' }}>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="payout-label mb-0">Recipient Details</label>
+                                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setRecipientMode('select')}
+                                            className={`text-[10px] px-2 py-1 rounded-md transition-all ${recipientMode === 'select' ? 'bg-white shadow-sm text-violet-600 font-bold' : 'text-slate-500'}`}
+                                        >
+                                            Saved
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setRecipientMode('new')}
+                                            className={`text-[10px] px-2 py-1 rounded-md transition-all ${recipientMode === 'new' ? 'bg-white shadow-sm text-violet-600 font-bold' : 'text-slate-500'}`}
+                                        >
+                                            New
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {recipientMode === 'select' ? (
+                                    <select
+                                        className="payout-input payout-select"
+                                        value={form.recipient}
+                                        onChange={(e) => handleRecipientSelected(e.target.value)}
+                                        required
+                                        disabled={!form.client_id}
+                                    >
+                                        <option value="">Select a saved recipient...</option>
+                                        {clientRecipients.map(r => (
+                                            <option key={r.id} value={r.name}>{r.name} {r.bank_name ? `(${r.bank_name})` : ''}</option>
+                                        ))}
+                                        {clientRecipients.length === 0 && form.client_id && (
+                                            <option value="" disabled>No recipients saved for this client</option>
+                                        )}
+                                    </select>
+                                ) : (
+                                    <div className="payout-input-icon-wrapper">
+                                        <input
+                                            type="text"
+                                            className="payout-input payout-input-with-icon"
+                                            placeholder="Enter recipient name..."
+                                            value={form.recipient}
+                                            onChange={(e) => setForm({ ...form, recipient: e.target.value })}
+                                            required
+                                        />
+                                        <UserPlus size={14} className="payout-input-icon" />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Amount AED */}

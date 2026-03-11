@@ -7,31 +7,51 @@ import axios from 'axios';
 const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
     const [form, setForm] = useState({
         client_id: '',
-        amount_naira: '',
-        amount_aed: '',
-        exchange_rate: '1650',
-        description: ''
+        amount_source: '', // Amount in client's currency
+        amount_aed: '',    // Final credit in AED
+        exchange_rate: '3.67',
+        description: '',
+        currency: 'AED',
+        date: new Date().toISOString().split('T')[0]
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     if (!isOpen) return null;
 
-    const handleNairaChange = (val) => {
+    const handleSourceChange = (val) => {
         const rate = parseFloat(form.exchange_rate) || 1;
         setForm({
             ...form,
-            amount_naira: val,
-            amount_aed: val ? (parseFloat(val) / rate).toFixed(2) : ''
+            amount_source: val,
+            amount_aed: val ? (parseFloat(val) * rate).toFixed(2) : ''
         });
     };
-
+    
     const handleRateChange = (val) => {
         const rate = parseFloat(val) || 1;
         setForm({
             ...form,
             exchange_rate: val,
-            amount_aed: form.amount_naira ? (parseFloat(form.amount_naira) / rate).toFixed(2) : ''
+            amount_aed: form.amount_source ? (parseFloat(form.amount_source) * rate).toFixed(2) : ''
+        });
+    };
+
+    const handleClientChange = (clientId) => {
+        const client = clients.find(c => c.id === parseInt(clientId));
+        const newCurrency = client?.currency || 'AED';
+        // Set default rate based on currency
+        let defaultRate = '1';
+        if (newCurrency === 'USD') defaultRate = '3.67';
+        else if (newCurrency === 'GBP') defaultRate = '4.70';
+        else if (newCurrency === 'EUR') defaultRate = '3.90';
+        
+        setForm({
+            ...form,
+            client_id: clientId,
+            currency: newCurrency,
+            exchange_rate: defaultRate,
+            amount_aed: form.amount_source ? (parseFloat(form.amount_source) * parseFloat(defaultRate)).toFixed(2) : ''
         });
     };
 
@@ -46,9 +66,10 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
             await axios.post('/api/transactions', {
                 ...form,
                 type: 'IN',
-                amount_naira: parseFloat(form.amount_naira),
+                amount_naira: parseFloat(form.amount_source), // Storing source amount here
                 amount_aed: parseFloat(form.amount_aed),
-                exchange_rate: parseFloat(form.exchange_rate)
+                exchange_rate: parseFloat(form.exchange_rate),
+                date: form.date
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -91,15 +112,15 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                             {/* Client Name */}
                             <div className="payout-field-group">
                                 <label className="payout-label">Client Name</label>
-                                <select
+                                    <select
                                     className="payout-input payout-select"
                                     value={form.client_id}
-                                    onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                                    onChange={(e) => handleClientChange(e.target.value)}
                                     required
                                 >
                                     <option value="">Select corporate account...</option>
                                     {clients.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                        <option key={c.id} value={c.id}>{c.name} ({c.currency})</option>
                                     ))}
                                 </select>
                             </div>
@@ -118,25 +139,35 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                                 </div>
                             </div>
 
-                            {/* Amount in Naira */}
+                            {/* Date Field */}
                             <div className="payout-field-group">
-                                <label className="payout-label">Amount in Naira (NGN)</label>
+                                <label className="payout-label">Transaction Date</label>
+                                <input
+                                    type="date"
+                                    className="payout-input"
+                                    value={form.date}
+                                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Amount in Source Currency */}
+                            <div className="payout-field-group">
+                                <label className="payout-label">Amount in {form.currency}</label>
                                 <div className="payout-amount-wrapper">
-                                    <span className="payout-currency-chip deposit-input-ngn-chip">NGN</span>
+                                    <span className="payout-currency-chip">{form.currency}</span>
                                     <input
                                         type="number"
                                         className="payout-input payout-amount-input"
                                         placeholder="0.00"
-                                        value={form.amount_naira}
-                                        onChange={(e) => handleNairaChange(e.target.value)}
+                                        value={form.amount_source}
+                                        onChange={(e) => handleSourceChange(e.target.value)}
                                         required
                                     />
                                 </div>
                             </div>
 
-                            {/* Exchange Rate */}
                             <div className="payout-field-group">
-                                <label className="payout-label">Exchange Rate</label>
+                                <label className="payout-label">Rate (1 {form.currency} = ? AED)</label>
                                 <div className="payout-input-icon-wrapper">
                                     <input
                                         type="number"
@@ -150,7 +181,7 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                             </div>
 
                             {/* Amount AED (Auto-calculated) */}
-                            <div className="payout-field-group" style={{ gridColumn: 'span 2' }}>
+                            <div className="payout-field-group">
                                 <label className="payout-label">Amount AED (Credit) — <span className="text-slate-400 font-normal">Auto-calculated</span></label>
                                 <div className="payout-amount-wrapper" style={{ background: '#f8fafc' }}>
                                     <span className="payout-currency-chip">AED</span>
@@ -178,16 +209,16 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
                         {/* Conversion Summary Card */}
                         <div className="deposit-summary-card">
                             <div className="deposit-summary-col">
-                                <div className="deposit-summary-label">NGN Amount</div>
+                                <div className="deposit-summary-label">{form.currency} Amount</div>
                                 <div className="deposit-summary-value">
-                                    {parseFloat(form.amount_naira || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN
+                                    {parseFloat(form.amount_source || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {form.currency}
                                 </div>
                             </div>
                             
                             <div className="deposit-summary-arrow">
                                 <ArrowRight size={18} />
                             </div>
-
+    
                             <div className="deposit-summary-col" style={{ alignItems: 'flex-end' }}>
                                 <div className="deposit-summary-label">AED Credited</div>
                                 <div className="deposit-summary-value deposit-summary-value-accent">

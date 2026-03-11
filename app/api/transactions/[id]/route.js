@@ -24,7 +24,7 @@ export async function PUT(request, { params }) {
     const { id } = await params;
 
     try {
-        const { client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description } = await request.json();
+        const { client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description, date } = await request.json();
 
         // Get original transaction to calculate balance adjustment
         const oldTx = await db.getAsync('SELECT * FROM transactions WHERE id = ?', [id]);
@@ -38,7 +38,7 @@ export async function PUT(request, { params }) {
 
             // 2. Update transaction
             const sql = `UPDATE transactions 
-                         SET client_id = ?, type = ?, amount_naira = ?, amount_aed = ?, exchange_rate = ?, recipient = ?, description = ?
+                         SET client_id = ?, type = ?, amount_naira = ?, amount_aed = ?, exchange_rate = ?, recipient = ?, description = ?, date = ?
                          WHERE id = ?`;
             const paramsList = [
                 client_id || oldTx.client_id,
@@ -48,6 +48,7 @@ export async function PUT(request, { params }) {
                 exchange_rate !== undefined ? exchange_rate : oldTx.exchange_rate,
                 recipient !== undefined ? recipient : oldTx.recipient,
                 description !== undefined ? description : oldTx.description,
+                date || oldTx.date,
                 id
             ];
             await db.runAsync(sql, paramsList);

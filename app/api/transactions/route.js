@@ -25,7 +25,7 @@ export async function POST(request) {
     if (!user) return NextResponse.json({ error: 'Access denied' }, { status: 401 });
 
     try {
-        const { client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description, transaction_unique_id } = await request.json();
+        const { client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description, transaction_unique_id, date } = await request.json();
 
         if (!client_id || !type || !amount_aed) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -34,9 +34,9 @@ export async function POST(request) {
         // Use a transaction for atomic update
         await db.runAsync('BEGIN TRANSACTION');
         try {
-            const sql = `INSERT INTO transactions (client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description, transaction_unique_id) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-            const params = [client_id, type, amount_naira || null, amount_aed, exchange_rate || null, recipient || null, description || null, transaction_unique_id || null];
+            const sql = `INSERT INTO transactions (client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description, transaction_unique_id, date) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const params = [client_id, type, amount_naira || null, amount_aed, exchange_rate || null, recipient || null, description || null, transaction_unique_id || null, date || new Date().toISOString()];
 
             const result = await db.runAsync(sql, params);
 

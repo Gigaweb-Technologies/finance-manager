@@ -12,13 +12,15 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
         amount_aed: '',
         exchange_rate: '',
         recipient: '',
-        description: ''
+        description: '',
+        date: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (transaction) {
+            const client = clients.find(c => c.id === transaction.client_id);
             setForm({
                 client_id: transaction.client_id || '',
                 type: transaction.type || 'IN',
@@ -26,10 +28,12 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
                 amount_aed: transaction.amount_aed || '',
                 exchange_rate: transaction.exchange_rate || '',
                 recipient: transaction.recipient || '',
-                description: transaction.description || ''
+                description: transaction.description || '',
+                currency: client?.currency || 'AED',
+                date: transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : ''
             });
         }
-    }, [transaction]);
+    }, [transaction, clients]);
 
     if (!isOpen) return null;
 
@@ -74,11 +78,15 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
                                     <User className="input-icon" size={18} />
                                     <select
                                         value={form.client_id}
-                                        onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                                        onChange={(e) => {
+                                            const cid = e.target.value;
+                                            const client = clients.find(c => String(c.id) === String(cid));
+                                            setForm({ ...form, client_id: cid, currency: client?.currency || 'AED' });
+                                        }}
                                         required
                                     >
                                         <option value="">Select Client</option>
-                                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.currency})</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -100,9 +108,9 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
 
                         <div className="modal-grid-premium">
                             <div className="payout-field-group">
-                                <label className="payout-label">Naira Amount (₦)</label>
+                                <label className="payout-label">Source Amount ({form.type === 'IN' ? (form.currency || 'AED') : 'AED'})</label>
                                 <div className="premium-input-wrapper">
-                                    <span className="input-icon">₦</span>
+                                    <span className="input-icon text-[10px] font-bold">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'}</span>
                                     <input
                                         type="number"
                                         step="0.01"
@@ -113,9 +121,9 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
                                 </div>
                             </div>
                             <div className="payout-field-group">
-                                <label className="payout-label">AED Amount</label>
+                                <label className="payout-label">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'} Amount</label>
                                 <div className="premium-input-wrapper">
-                                    <span className="input-icon">AED</span>
+                                    <span className="input-icon text-[10px] font-bold">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'}</span>
                                     <input
                                         type="number"
                                         step="0.01"
@@ -129,7 +137,19 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
                         </div>
 
                         <div className="payout-field-group">
-                            <label className="payout-label">Exchange Rate (1 AED = ? NGN)</label>
+                            <label className="payout-label">Transaction Date</label>
+                            <div className="premium-input-wrapper">
+                                <Calendar className="input-icon" size={18} />
+                                <input
+                                    type="date"
+                                    value={form.date}
+                                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="payout-field-group">
+                            <label className="payout-label">Exchange Rate (1 {form.type === 'IN' ? (form.currency || 'AED') : 'AED'} = ? NGN)</label>
                             <div className="premium-input-wrapper">
                                 <DollarSign className="input-icon" size={18} />
                                 <input

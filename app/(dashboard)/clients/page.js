@@ -73,13 +73,26 @@ export default function ClientsPage() {
         return clients.map(client => {
             const clientTx = allTransactions.filter(tx => tx.client_id === client.id)
                 .sort((a, b) => new Date(b.date) - new Date(a.date));
-            const volume = clientTx.reduce((sum, tx) => sum + (tx.amount_naira || 0), 0);
+            const volumeAED = clientTx.filter(tx => tx.type === 'IN').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+            const payoutAED = clientTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+            
+            // Calculate balance in client's native currency
+            let balanceNative = client.balance_aed;
+            if (client.currency && client.currency !== 'AED') {
+                // Use the latest rate from transactions or fallback to defaults
+                const latestRate = clientTx.find(tx => tx.exchange_rate > 0)?.exchange_rate;
+                const rate = latestRate || (client.currency === 'USD' ? 3.67 : client.currency === 'GBP' ? 4.70 : client.currency === 'EUR' ? 3.90 : 1);
+                balanceNative = client.balance_aed / rate;
+            }
+
             const lastTx = clientTx[0];
             return {
                 ...client,
                 recentTxs: clientTx.slice(0, 3),
                 txCount: clientTx.length,
-                totalVolume: volume,
+                totalVolumeAED: volumeAED,
+                totalPayoutAED: payoutAED,
+                balanceNative: balanceNative,
                 status: clientTx.length > 0 ? 'Active' : 'Pending',
                 lastActive: lastTx ? new Date(lastTx.date) : null
             };
@@ -182,8 +195,9 @@ export default function ClientsPage() {
                                 <tr>
                                     <th>Client</th>
                                     <th>Status</th>
-                                    <th>Total Transactions</th>
-                                    <th>Total Volume (NGN)</th>
+                                    <th>Base Currency</th>
+                                    <th>Ledger Balance</th>
+                                    <th>Total Volume (AED)</th>
                                     <th>Last Activity</th>
                                     <th className="text-right">Actions</th>
                                 </tr>
@@ -221,10 +235,20 @@ export default function ClientsPage() {
                                                 </span>
                                             </td>
                                             <td>
-                                                <div className="tx-count-cell">{client.txCount} transactions</div>
+                                                <div className="status-pill status-pending" style={{ background: '#f8fafc', color: '#64748b' }}>
+                                                    {client.currency || 'AED'}
+                                                </div>
                                             </td>
                                             <td>
-                                                <div className="volume-cell">₦ {client.totalVolume.toLocaleString()}</div>
+                                                <div className="font-bold text-slate-700">
+                                                    {client.currency || 'AED'} {client.balanceNative.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
+                                                    {client.txCount} transactions
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="volume-cell">AED {client.totalVolumeAED.toLocaleString()}</div>
                                             </td>
                                             <td>
                                                 <div className="activity-cell">
@@ -287,10 +311,28 @@ export default function ClientsPage() {
                     <div className="account-summary-card">
                         <h4 className="summary-balance-label">Account Summary</h4>
                         <div className="mt-4">
-                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Ledger Balance:</div>
-                            <div className="summary-balance-value">₦ {selectedEnriched?.totalVolume.toLocaleString()}</div>
+                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Native Balance ({selectedEnriched?.currency || 'AED'}):</div>
+                            <div className="summary-balance-value" style={{ fontSize: '1.8rem' }}>
+                                {selectedEnriched?.currency || 'AED'} {selectedEnriched?.balanceNative?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </div>
                         </div>
-                        <div className="summary-grid">
+                        
+                        <div className="border-t border-slate-100 my-4 pt-4 space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500">Total Volume (AED)</span>
+                                <span className="font-bold text-emerald-600">AED {selectedEnriched?.totalVolumeAED.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500">Total Payout (AED)</span>
+                                <span className="font-bold text-rose-600">AED {selectedEnriched?.totalPayoutAED.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500 font-bold">Consolidated Balance</span>
+                                <span className="font-bold text-violet-600">AED {selectedEnriched?.balance_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+
+                        <div className="summary-grid mt-4 pt-4 border-t border-slate-100">
                             <div className="summary-item-label">Total Transactions:</div>
                             <div className="summary-item-value">{selectedEnriched?.txCount}</div>
                             <div className="summary-item-label">Current Status:</div>
@@ -321,29 +363,7 @@ export default function ClientsPage() {
                         </div>
                     </div>
 
-                    <div className="mt-auto pt-8 border-t border-slate-100 flex flex-col gap-3">
-                        <h4 className="text-sm font-bold text-slate-800 mb-2">Primary Actions</h4>
-                        <button
-                            onClick={() => handleEdit(selectedEnriched)}
-                            className="btn-save-changes w-full"
-                            style={{ backgroundColor: 'white', color: '#6d28d9', border: '1px solid #7c3aed' }}
-                        >
-                            Edit Client
-                        </button>
-                        <button
-                            onClick={() => handleDeleteClick(selectedEnriched)}
-                            className="btn-save-changes w-full"
-                            style={{ backgroundColor: '#e11d48' }}
-                        >
-                            Permanently Delete Client
-                        </button>
-                        <button
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="text-slate-500 font-bold text-sm w-full py-2 hover:text-slate-800 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                    </div>
+
                 </div>
             </aside>
 

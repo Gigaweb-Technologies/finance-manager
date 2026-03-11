@@ -11,14 +11,16 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
         phone: client.phone || '',
         address: client.address || '',
         contact_person: client.contact_person || '',
-        photo_url: client.photo_url || ''
+        photo_url: client.photo_url || '',
+        currency: client.currency || 'AED'
     } : {
         name: '',
         email: '',
         phone: '',
         address: '',
         contact_person: '',
-        photo_url: ''
+        photo_url: '',
+        currency: 'AED'
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -143,18 +145,36 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
                             </div>
                         </div>
 
-                        {/* Contact Person */}
-                        <div>
-                            <label className="client-label">Contact Person</label>
-                            <div className="client-input-wrapper">
-                                <Contact className="client-input-icon" size={18} />
-                                <input
-                                    type="text"
-                                    className="client-input"
-                                    placeholder="Name of primary contact"
-                                    value={form.contact_person}
-                                    onChange={(e) => setForm({ ...form, contact_person: e.target.value })}
-                                />
+                        {/* Contact Person & Currency Row */}
+                        <div className="client-form-row">
+                            <div>
+                                <label className="client-label">Contact Person</label>
+                                <div className="client-input-wrapper">
+                                    <Contact className="client-input-icon" size={18} />
+                                    <input
+                                        type="text"
+                                        className="client-input"
+                                        placeholder="Name of primary contact"
+                                        value={form.contact_person}
+                                        onChange={(e) => setForm({ ...form, contact_person: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="client-label">Base Currency</label>
+                                <div className="client-input-wrapper">
+                                    <select
+                                        className="client-input"
+                                        value={form.currency}
+                                        onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                                        style={{ paddingLeft: '12px' }}
+                                    >
+                                        <option value="AED">AED - Emirati Dirham</option>
+                                        <option value="USD">USD - US Dollar</option>
+                                        <option value="GBP">GBP - British Pound</option>
+                                        <option value="EUR">EUR - Euro</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 

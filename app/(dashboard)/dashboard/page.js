@@ -10,6 +10,7 @@ import {
     Plus,
     Filter,
     Download,
+    FileUp,
     TrendingDown,
     TrendingUp
 } from 'lucide-react';
@@ -27,17 +28,17 @@ export default function DashboardPage() {
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
 
-        const totalNgnInflow = allTransactions
+        const totalMixedInflow = allTransactions
             .filter(t => t.type === 'IN')
-            .reduce((sum, t) => sum + (t.amount_naira || 0), 0);
+            .reduce((sum, t) => sum + (t.amount_aed || 0), 0);
 
         const monthInflow = allTransactions
             .filter(t => t.type === 'IN' && new Date(t.date) >= thirtyDaysAgo)
-            .reduce((sum, t) => sum + (t.amount_naira || 0), 0);
+            .reduce((sum, t) => sum + (t.amount_aed || 0), 0);
 
         const prevMonthInflow = allTransactions
             .filter(t => t.type === 'IN' && new Date(t.date) >= sixtyDaysAgo && new Date(t.date) < thirtyDaysAgo)
-            .reduce((sum, t) => sum + (t.amount_naira || 0), 0);
+            .reduce((sum, t) => sum + (t.amount_aed || 0), 0);
 
         const inflowGrowth = prevMonthInflow === 0 ? 12.5 : ((monthInflow - prevMonthInflow) / prevMonthInflow) * 100;
 
@@ -51,7 +52,7 @@ export default function DashboardPage() {
         const txRate = latestTx?.exchange_rate || 415.50;
 
         return {
-            totalNgnInflow: totalNgnInflow,
+            totalAedInflow: totalMixedInflow,
             monthInflow,
             inflowGrowth,
             totalAedOutflow: totalAedOutflow,
@@ -78,6 +79,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="action-buttons-group">
                     <button
+                        onClick={() => setActiveModal('upload')}
+                        className="btn-ghost-custom border border-slate-200"
+                    >
+                        <FileUp size={18} /> Bulk Upload
+                    </button>
+                    <button
                         onClick={() => setActiveModal('payout')}
                         className="btn-secondary-custom"
                     >
@@ -93,7 +100,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="stats-grid-premium">
-                {/* Stat 1: Total Naira Inflow */}
+                {/* Stat 1: Total AED Inflow */}
                 <div className="premium-card">
                     <div className="card-top">
                         <div className="card-icon-box bg-[#f0fdf4] text-[#16a34a]">
@@ -103,8 +110,8 @@ export default function DashboardPage() {
                             <TrendingUp size={14} /> +{stats.inflowGrowth.toFixed(1)}%
                         </div>
                     </div>
-                    <div className="card-label">Total Naira Inflow</div>
-                    <div className="card-value">₦ {stats.totalNgnInflow.toLocaleString()}</div>
+                    <div className="card-label">Total AED Inflow</div>
+                    <div className="card-value">AED {stats.totalAedInflow.toLocaleString()}</div>
                     <div className="card-footer-text">Last 30 days</div>
                 </div>
 
@@ -147,7 +154,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="card-label">Network Overview</div>
                     <div className="card-value">{clients.length} <span className="text-sm text-[#94a3b8] font-medium lowercase">Clients</span></div>
-                    <div className="card-footer-text text-[#7c3aed] font-bold">1 AED = {stats.txRate} NGN</div>
+                    <div className="card-footer-text text-[#7c3aed] font-bold">Consolidated AED metrics</div>
                 </div>
             </div>
 
@@ -170,9 +177,9 @@ export default function DashboardPage() {
                                 <th>Date</th>
                                 <th>Client</th>
                                 <th>Type</th>
-                                <th>Naira Amount</th>
-                                <th>AED Amount</th>
-                                <th>Running Balance</th>
+                                <th>Source Amount</th>
+                                <th>Client Amount</th>
+                                <th>Client Balance</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -208,17 +215,17 @@ export default function DashboardPage() {
                                         </td>
                                         <td>
                                             <div className="amount-ngn">
-                                                {tx.amount_naira ? `₦ ${tx.amount_naira.toLocaleString()}` : '-'}
+                                                {tx.amount_naira ? `${tx.amount_naira.toLocaleString()} ${client?.currency || 'AED'}` : '-'}
                                             </div>
                                         </td>
                                         <td>
                                             <div className={`amount-aed ${tx.type === 'IN' ? 'amount-positive' : 'amount-negative'}`}>
-                                                {tx.type === 'IN' ? '+ ' : '- '}{tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED
+                                                {tx.type === 'IN' ? '+ ' : '- '}{tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })} {tx.type === 'IN' ? (client?.currency || 'AED') : 'AED'}
                                             </div>
                                         </td>
                                         <td>
                                             <div className="running-balance">
-                                                AED {client?.balance_aed?.toLocaleString() || '0'}
+                                                {client?.currency || 'AED'} {client?.balance_aed?.toLocaleString() || '0'}
                                             </div>
                                         </td>
                                     </tr>

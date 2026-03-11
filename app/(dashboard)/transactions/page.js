@@ -102,12 +102,12 @@ export default function TransactionsPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Complete record of all financial operations.</p>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <button
-              onClick={() => setActiveModal('upload')}
-              className="btn-premium"
-              style={{ border: '1px solid var(--border-color)', background: 'white', color: 'var(--text-main)', borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            <button 
+                onClick={() => setActiveModal('upload')}
+                className="btn-premium" 
+                style={{ border: '1px solid var(--border-color)', background: 'white', color: 'var(--text-main)', borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <FileText size={18} /> Bulk Upload
+              <FileUp size={18} /> Bulk Upload
             </button>
             <button className="btn-premium" style={{ border: '1px solid var(--border-color)', background: 'white', color: 'var(--text-main)', borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <SlidersHorizontal size={18} /> Advanced Filters
@@ -220,8 +220,8 @@ export default function TransactionsPage() {
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>DATE & TIME</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>CLIENT</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>TYPE</th>
-                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>NGN AMOUNT</th>
-                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>AED AMOUNT</th>
+                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>SOURCE AMOUNT</th>
+                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>CLIENT AMOUNT</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>STATUS</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>ACTIONS</th>
               </tr>
@@ -250,10 +250,12 @@ export default function TransactionsPage() {
                     </span>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                    {tx.amount_naira ? `₦ ${tx.amount_naira.toLocaleString()}` : <span style={{ color: 'var(--border-color)' }}>-</span>}
+                    {tx.amount_naira ? `${tx.amount_naira.toLocaleString()} ${clients.find(c => c.id === tx.client_id)?.currency || 'AED'}` : <span style={{ color: 'var(--border-color)' }}>-</span>}
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700 }} className={tx.type === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
-                    <span style={{ color: tx.type === 'IN' ? '#10b981' : '#f43f5e' }}>{tx.type === 'IN' ? '+' : '-'} {tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</span>
+                    <span style={{ color: tx.type === 'IN' ? '#10b981' : '#f43f5e' }}>
+                      {tx.type === 'IN' ? '+' : '-'} {tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'} {tx.type === 'IN' ? (clients.find(c => c.id === tx.client_id)?.currency || 'AED') : 'AED'}
+                    </span>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', textAlign: 'center' }}>
                     {(tx.status === 'COMPLETED' || tx.status === 'SUCCESS' || !tx.status) ? (

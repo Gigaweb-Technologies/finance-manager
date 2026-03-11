@@ -201,7 +201,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         {/* Rate */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Rate (₦/AED):</span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Rate (₦/FC):</span>
                             <input
                                 type="number"
                                 value={rate}
@@ -305,7 +305,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Narration</th>
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Amount (₦)</th>
-                                            <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Est. AED</th>
+                                            <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Est. Credit</th>
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Action</th>
                                         </tr>
                                     </thead>
@@ -332,7 +332,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                                     ₦ {it.amount_naira.toLocaleString()}
                                                 </td>
                                                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap' }}>
-                                                    {(it.amount_naira / parseFloat(rate)).toFixed(2)}
+                                                    {(it.amount_naira / parseFloat(rate)).toFixed(2)} {clients.find(c => c.id === it.client_id)?.currency || 'AED'}
                                                 </td>
                                                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                                     {pendingDelete === it.originalIdx ? (

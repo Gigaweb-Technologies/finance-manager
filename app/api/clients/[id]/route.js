@@ -24,12 +24,12 @@ export async function PUT(request, { params }) {
     const { id } = await params;
 
     try {
-        const { name, email, phone, address, contact_person, photo_url } = await request.json();
+        const { name, email, phone, address, contact_person, photo_url, currency } = await request.json();
         if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
 
         const result = await db.runAsync(
-            'UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, contact_person = ?, photo_url = ? WHERE id = ?',
-            [name, email || null, phone || null, address || null, contact_person || null, photo_url || null, id]
+            'UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, contact_person = ?, photo_url = ?, currency = ? WHERE id = ?',
+            [name, email || null, phone || null, address || null, contact_person || null, photo_url || null, currency || 'AED', id]
         );
         if (result.changes === 0) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
         return NextResponse.json({ message: 'Client updated successfully' });
