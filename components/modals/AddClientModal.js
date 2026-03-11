@@ -77,7 +77,7 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
     return (
         <div className="modal-overlay modal-overlay-blur">
             <div className="modal-payout-container animate-fade" style={{ maxWidth: '520px' }}>
-                
+
                 {/* Header */}
                 <div className="modal-client-header">
                     <div className="modal-client-header-left">
@@ -189,8 +189,10 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
                                     >
                                         <option value="AED">AED - Emirati Dirham</option>
                                         <option value="USD">USD - US Dollar</option>
+                                        <option value="NGN">NGN - Nigerian Naira</option>
                                         <option value="GBP">GBP - British Pound</option>
                                         <option value="EUR">EUR - Euro</option>
+
                                     </select>
                                 </div>
                             </div>

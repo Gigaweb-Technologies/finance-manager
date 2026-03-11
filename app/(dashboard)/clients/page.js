@@ -81,7 +81,7 @@ export default function ClientsPage() {
             if (client.currency && client.currency !== 'AED') {
                 // Use the latest rate from transactions or fallback to defaults
                 const latestRate = clientTx.find(tx => tx.exchange_rate > 0)?.exchange_rate;
-                const rate = latestRate || (client.currency === 'USD' ? 3.67 : client.currency === 'GBP' ? 4.70 : client.currency === 'EUR' ? 3.90 : 1);
+                const rate = latestRate || (client.currency === 'USD' ? 3.67 : client.currency === 'GBP' ? 4.70 : client.currency === 'EUR' ? 3.90 : client.currency === 'NGN' ? 0.0025 : 1);
                 balanceNative = client.balance_aed / rate;
             }
 
