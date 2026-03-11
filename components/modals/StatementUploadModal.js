@@ -19,7 +19,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [extractedData, setExtractedData] = useState([]);
-    const [rate, setRate] = useState('1650');
+    const [rates, setRates] = useState({});
     const [summary, setSummary] = useState({ success: 0, fail: 0, duplicates: 0 });
     const [error, setError] = useState('');
     const [progress, setProgress] = useState(null); // { current, total }
@@ -61,12 +61,13 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
             const dupRes = await axios.post('/api/transactions/check-duplicates', { ids: uniqueIds }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-
             const duplicateIds = new Set(dupRes.data);
             const enrichedTransactions = transactions.map(t => {
                 const matchingClient = clients.find(c =>
-                    t.sender.toLowerCase().includes(c.name.toLowerCase()) ||
-                    c.name.toLowerCase().includes(t.sender.toLowerCase())
+                    c.currency === 'NGN' && (
+                        t.sender.toLowerCase().includes(c.name.toLowerCase()) ||
+                        c.name.toLowerCase().includes(t.sender.toLowerCase())
+                    )
                 );
                 return {
                     ...t,
@@ -75,6 +76,12 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                 };
             });
 
+            const initialRates = {};
+            enrichedTransactions.forEach(t => {
+                const d = t.date.split('T')[0];
+                if (!initialRates[d]) initialRates[d] = '1650';
+            });
+            setRates(initialRates);
             setExtractedData(enrichedTransactions);
             setStep('review');
         } catch (err) {
@@ -84,9 +91,9 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
         }
     };
 
-    const handleAssignClient = (sender, clientId) => {
-        setExtractedData(prev => prev.map(t =>
-            t.sender === sender ? { ...t, client_id: clientId } : t
+    const handleAssignClient = (originalIdx, clientId) => {
+        setExtractedData(prev => prev.map((t, idx) =>
+            idx === originalIdx ? { ...t, client_id: clientId } : t
         ));
     };
 
@@ -117,10 +124,11 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                     client_id: tx.client_id,
                     type: 'IN',
                     amount_naira: tx.amount_naira,
-                    amount_aed: parseFloat((tx.amount_naira / parseFloat(rate)).toFixed(2)),
-                    exchange_rate: parseFloat(rate),
+                    amount_aed: parseFloat((tx.amount_naira / parseFloat(rates[tx.date.split('T')[0]] || 1650)).toFixed(2)),
+                    exchange_rate: parseFloat(rates[tx.date.split('T')[0]] || 1650),
                     description: tx.narration,
-                    transaction_unique_id: tx.transaction_unique_id
+                    transaction_unique_id: tx.transaction_unique_id,
+                    date: tx.date
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -153,12 +161,14 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
         onClose();
     };
 
-    // Group by sender for easier assignment
+    // Group by date for per-date rate assignment
     const groupedData = extractedData.reduce((acc, tx, idx) => {
-        if (!acc[tx.sender]) acc[tx.sender] = { sender: tx.sender, items: [] };
-        acc[tx.sender].items.push({ ...tx, originalIdx: idx });
+        const d = tx.date.split('T')[0];
+        if (!acc[d]) acc[d] = { date: d, items: [] };
+        acc[d].items.push({ ...tx, originalIdx: idx });
         return acc;
     }, {});
+    const sortedDates = Object.keys(groupedData).sort((a,b) => new Date(a) - new Date(b));
 
     const recordableCount = extractedData.filter(t => t.client_id && !t.is_duplicate).length;
     const autoAssignedCount = extractedData.filter(t => t.client_id).length;
@@ -199,21 +209,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        {/* Rate */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Rate (₦/FC):</span>
-                            <input
-                                type="number"
-                                value={rate}
-                                onChange={(e) => setRate(e.target.value)}
-                                style={{
-                                    width: 80, height: 34, padding: '0 0.5rem',
-                                    border: '1px solid #e2e8f0', borderRadius: 8,
-                                    fontSize: '0.85rem', fontWeight: 700, textAlign: 'center',
-                                    color: '#7c3aed', outline: 'none', background: '#faf5ff'
-                                }}
-                            />
-                        </div>
+
                         <button
                             onClick={handleClearAll}
                             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', borderRadius: 8, padding: '0.5rem 1rem', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
@@ -260,8 +256,10 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                 {/* Content */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
                     <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        {Object.values(groupedData).map((group, gIdx) => (
-                            <div key={gIdx} style={{
+                        {sortedDates.map((dateKey) => {
+                            const group = groupedData[dateKey];
+                            return (
+                            <div key={dateKey} style={{
                                 background: 'white', borderRadius: 14,
                                 border: '1px solid #e2e8f0',
                                 overflow: 'hidden',
@@ -277,33 +275,33 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                         <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <TrendingUp size={14} style={{ color: '#10b981' }} />
                                         </div>
-                                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e293b' }}>{group.sender}</span>
+                                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e293b' }}>{group.date}</span>
                                         <span style={{ background: '#f1f5f9', color: '#64748b', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 6 }}>
                                             {group.items.length} transaction{group.items.length !== 1 ? 's' : ''}
                                         </span>
                                     </div>
-                                    <select
-                                        style={{
-                                            border: '1px solid #e2e8f0', borderRadius: 8,
-                                            padding: '0.4rem 0.85rem', fontSize: '0.82rem',
-                                            fontWeight: 700, color: '#374151',
-                                            background: 'white', cursor: 'pointer',
-                                            width: 240, outline: 'none'
-                                        }}
-                                        value={group.items[0].client_id}
-                                        onChange={(e) => handleAssignClient(group.sender, e.target.value)}
-                                    >
-                                        <option value="">Assign to client...</option>
-                                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Rate (₦/AED):</span>
+                                        <input
+                                            type="number"
+                                            value={rates[group.date] || ''}
+                                            onChange={(e) => setRates(prev => ({ ...prev, [group.date]: e.target.value }))}
+                                            style={{
+                                                width: 80, height: 34, padding: '0 0.5rem',
+                                                border: '1px solid #e2e8f0', borderRadius: 8,
+                                                fontSize: '0.85rem', fontWeight: 700, textAlign: 'center',
+                                                color: '#7c3aed', outline: 'none', background: '#faf5ff'
+                                            }}
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Transactions table */}
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                            <th style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th>
-                                            <th style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Narration</th>
+                                            <th style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Assign Client</th>
+                                            <th style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sender / Narration</th>
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Amount (₦)</th>
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Est. Credit</th>
                                             <th style={{ padding: '0.6rem 1.5rem', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Action</th>
@@ -319,11 +317,28 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                                     background: it.is_duplicate ? '#fef9f9' : 'white'
                                                 }}
                                             >
-                                                <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.82rem', color: '#64748b', whiteSpace: 'nowrap' }}>{it.date}</td>
-                                                <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.82rem', color: '#374151', fontWeight: 500, maxWidth: 500 }}>
-                                                    {it.narration}
+                                                <td style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}>
+                                                    <select
+                                                        style={{
+                                                            border: '1px solid #e2e8f0', borderRadius: 8,
+                                                            padding: '0.4rem 0.5rem', fontSize: '0.82rem',
+                                                            fontWeight: 700, color: '#374151',
+                                                            background: 'white', cursor: 'pointer',
+                                                            width: 160, outline: 'none',
+                                                            borderColor: !it.client_id && !it.is_duplicate ? '#fecdd3' : '#e2e8f0'
+                                                        }}
+                                                        value={it.client_id || ''}
+                                                        onChange={(e) => handleAssignClient(it.originalIdx, e.target.value)}
+                                                    >
+                                                        <option value="">Select client...</option>
+                                                        {clients.filter(c => c.currency === 'NGN').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.82rem', color: '#374151', fontWeight: 500, maxWidth: 400 }}>
+                                                    <div style={{ fontWeight: 800, color: '#1e293b', marginBottom: '0.1rem' }}>{it.sender}</div>
+                                                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{it.narration}</div>
                                                     {it.is_duplicate && (
-                                                        <span style={{ marginLeft: '0.5rem', background: '#ffe4e6', color: '#e11d48', fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4 }}>
+                                                        <span style={{ display: 'inline-block', marginTop: '0.3rem', background: '#ffe4e6', color: '#e11d48', fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4 }}>
                                                             DUPLICATE
                                                         </span>
                                                     )}
@@ -332,7 +347,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                                     ₦ {it.amount_naira.toLocaleString()}
                                                 </td>
                                                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap' }}>
-                                                    {(it.amount_naira / parseFloat(rate)).toFixed(2)} {clients.find(c => c.id === it.client_id)?.currency || 'AED'}
+                                                    {(it.amount_naira / parseFloat(rates[group.date] || 1650)).toFixed(2)} {clients.find(c => c.id === it.client_id)?.currency || 'AED'}
                                                 </td>
                                                 <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                                     {pendingDelete === it.originalIdx ? (
@@ -377,7 +392,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                     </div>
                                 )}
                             </div>
-                        ))}
+                        );})}
 
                         {extractedData.length === 0 && (
                             <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
@@ -506,11 +521,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                                 </button>
                             </div>
 
-                            {/* Warning */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#f59e0b', fontSize: '0.78rem', fontWeight: 600 }}>
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#f59e0b" strokeWidth="1.5"/><path d="M8 5v3.5M8 11h.01" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                                This action is irreversible
-                            </div>
+
                         </div>
                     )}
 

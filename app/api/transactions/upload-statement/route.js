@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { authenticateToken } from '@/lib/auth';
-import { normalizeSenderName, generateDeterministicId } from '@/lib/statement-processor';
+import { normalizeSenderName, generateDeterministicId, normalizeDate } from '@/lib/statement-processor';
 import path from 'path';
 
 // Using internal lib path for legacy pdf-parse to bypass index.js debug bug
@@ -86,7 +86,7 @@ export async function POST(request) {
                         currentNarration = currentNarration.replace(/^\d+/, '').trim();
 
                         const transaction = {
-                            date: currentDate,
+                            date: normalizeDate(currentDate),
                             amount_naira: amount_naira,
                             narration: currentNarration,
                             sender: normalizeSenderName(currentNarration),
@@ -125,7 +125,7 @@ export async function POST(request) {
                                 const val = parseFloat(amounts[0].replace(/,/g, ''));
                                 if (val > 0) {
                                     const transaction = {
-                                        date: currentDate,
+                                        date: normalizeDate(currentDate),
                                         amount_naira: val,
                                         narration: currentNarration,
                                         sender: normalizeSenderName(currentNarration),

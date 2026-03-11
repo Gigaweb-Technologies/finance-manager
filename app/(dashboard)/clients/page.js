@@ -75,7 +75,7 @@ export default function ClientsPage() {
                 .sort((a, b) => new Date(b.date) - new Date(a.date));
             const volumeAED = clientTx.filter(tx => tx.type === 'IN').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
             const payoutAED = clientTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
-            
+
             // Calculate balance in client's native currency
             let balanceNative = client.balance_aed;
             if (client.currency && client.currency !== 'AED') {
@@ -115,7 +115,7 @@ export default function ClientsPage() {
 
     return (
         <div className="animate-fade flex">
-            <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'mr-[400px]' : ''}`}>
+            <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'mr-[500px]' : ''}`}>
                 <div className="flex-between page-header">
                     <div>
                         <h1 className="text-2xl font-bold text-[#1e293b] mb-1">Client Management</h1>
@@ -206,8 +206,8 @@ export default function ClientsPage() {
                                 {filteredClients.map((client) => {
                                     const isSelected = selectedClient?.id === client.id && isSidebarOpen;
                                     return (
-                                        <tr 
-                                            key={client.id} 
+                                        <tr
+                                            key={client.id}
                                             className={`transition-colors cursor-pointer ${isSelected ? 'table-row-selected' : 'hover:bg-slate-50/50'}`}
                                             onClick={() => handleViewDetails(client)}
                                         >
@@ -299,71 +299,148 @@ export default function ClientsPage() {
             </div>
 
             {/* Details Sidebar */}
-            <aside className={`details-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-                <div className="details-sidebar-header">
-                    <h2 className="font-bold text-lg text-slate-800">Details for {selectedEnriched?.name?.split(' ')[0]}</h2>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 hover:text-slate-600">
-                        <X size={20} />
+            {/* Details Sidebar */}
+            <aside className={`details-sidebar ${isSidebarOpen ? 'open' : ''}`} style={{
+                background: '#fafafa',
+                padding: '0',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+                {/* Hero Header */}
+                <div style={{
+                    position: 'relative',
+                    background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                    padding: '2.5rem 2rem 1.5rem',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    gap: '1rem'
+                }}>
+                    <button onClick={() => setIsSidebarOpen(false)} style={{
+                        position: 'absolute', top: '1.25rem', right: '1.25rem',
+                        background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
+                        border: 'none', borderRadius: '50%', padding: '0.4rem', color: 'white',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }} className="hover:bg-white/30 transition-colors">
+                        <X size={18} />
                     </button>
-                </div>
-                
-                <div className="details-sidebar-content">
-                    <div className="account-summary-card">
-                        <h4 className="summary-balance-label">Account Summary</h4>
-                        <div className="mt-4">
-                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Native Balance ({selectedEnriched?.currency || 'AED'}):</div>
-                            <div className="summary-balance-value" style={{ fontSize: '1.8rem' }}>
-                                {selectedEnriched?.currency || 'AED'} {selectedEnriched?.balanceNative?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </div>
+
+                    <div style={{
+                        width: 56, height: 56, borderRadius: '50%', background: 'white',
+                        color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1.5rem', fontWeight: 800, flexShrink: 0,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}>
+                        {selectedEnriched?.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <h2 className="font-bold text-2xl text-white leading-tight">
+                            {selectedEnriched?.name}
+                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', opacity: 0.9 }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>ID: #CL-{1000 + (selectedEnriched?.id || 0)}</span>
+                            {selectedEnriched?.contact_person && (
+                                <>
+                                    <span style={{ fontSize: '0.8rem' }}>•</span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>{selectedEnriched?.contact_person}</span>
+                                </>
+                            )}
                         </div>
-                        
-                        <div className="border-t border-slate-100 my-4 pt-4 space-y-3">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Total Volume (AED)</span>
-                                <span className="font-bold text-emerald-600">AED {selectedEnriched?.totalVolumeAED.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Total Payout (AED)</span>
-                                <span className="font-bold text-rose-600">AED {selectedEnriched?.totalPayoutAED.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-bold">Consolidated Balance</span>
-                                <span className="font-bold text-violet-600">AED {selectedEnriched?.balance_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                </div>
+
+                <div style={{ padding: '2rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    {/* Account Summary Card */}
+                    <div style={{
+                        background: 'white', borderRadius: 16, padding: '1.5rem',
+                        border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+                    }}>
+                        <div>
+                            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Native Balance</div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', color: '#1e293b', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#64748b' }}>{selectedEnriched?.currency || 'AED'}</span>
+                                <span style={{ fontSize: '2.4rem', fontWeight: 800 }}>
+                                    {selectedEnriched?.balanceNative?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
                             </div>
                         </div>
 
-                        <div className="summary-grid mt-4 pt-4 border-t border-slate-100">
-                            <div className="summary-item-label">Total Transactions:</div>
-                            <div className="summary-item-value">{selectedEnriched?.txCount}</div>
-                            <div className="summary-item-label">Current Status:</div>
-                            <div className={`status-pill w-fit ${selectedEnriched?.status === 'Active' ? 'status-active' : 'status-pending'}`}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #f8fafc' }}>
+                            <div>
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Volume</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }} className="font-bold text-[#1e293b]">
+                                    <span style={{ fontSize: '0.75rem' }} className="text-emerald-500 font-semibold">AED</span>
+                                    <span style={{ fontSize: '0.75rem' }}>{selectedEnriched?.totalVolumeAED.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Payout</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }} className="font-bold text-[#1e293b]">
+                                    <span style={{ fontSize: '0.75rem' }} className="text-rose-500 font-semibold">AED</span>
+                                    <span style={{ fontSize: '0.75rem' }}>{selectedEnriched?.totalPayoutAED.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Consolidated</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }} className="font-bold text-[#1e293b]">
+                                    <span style={{ fontSize: '0.75rem' }} className="text-violet-500 font-semibold">AED</span>
+                                    <span style={{ fontSize: '0.75rem' }}>{selectedEnriched?.balance_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #f8fafc' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div className="text-xs font-semibold text-slate-500">Transactions:</div>
+                                <div className="text-sm font-bold text-slate-800">{selectedEnriched?.txCount}</div>
+                            </div>
+                            <div className={`status-pill w-fit ${selectedEnriched?.status === 'Active' ? 'status-active' : 'status-pending'}`} style={{ margin: 0 }}>
                                 {selectedEnriched?.status}
                             </div>
                         </div>
                     </div>
 
-                    <div className="mb-8">
-                        <h4 className="text-sm font-bold text-slate-800 mb-6">Recent Activity</h4>
-                        <div className="timeline">
-                            {selectedEnriched?.recentTxs.length > 0 ? selectedEnriched.recentTxs.map((tx, idx) => (
-                                <div key={tx.id} className="timeline-item">
-                                    <div className={`timeline-dot ${idx === 0 ? 'active' : ''}`}></div>
-                                    <div className="timeline-content">
-                                        <div className="timeline-title">
-                                            {tx.type === 'DEPOSIT' ? 'Recent Deposit' : 'Recent Payout'}
-                                        </div>
-                                        <div className="timeline-time">
-                                            {new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, {new Date(tx.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    {/* Recent Activity */}
+                    <div>
+                        <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <Clock size={16} className="text-slate-400" /> Recent Activity
+                        </h4>
+                        <div style={{ paddingLeft: '0.5rem' }}>
+                            {selectedEnriched?.recentTxs.length > 0 ? selectedEnriched.recentTxs.map((tx, idx) => {
+                                const isDeposit = tx.type === 'IN';
+                                return (
+                                    <div key={tx.id} style={{
+                                        borderLeft: '2px solid #e2e8f0',
+                                        paddingLeft: '1.25rem',
+                                        paddingBottom: idx === selectedEnriched.recentTxs.length - 1 ? '0' : '1.5rem',
+                                        position: 'relative'
+                                    }}>
+                                        <div style={{
+                                            position: 'absolute', left: '-5px', top: '0',
+                                            width: '8px', height: '8px', borderRadius: '50%',
+                                            background: isDeposit ? '#10b981' : '#f43f5e',
+                                            boxShadow: `0 0 0 3px ${isDeposit ? '#ecfdf5' : '#fff1f2'}`
+                                        }}></div>
+                                        <div style={{ marginTop: '-4px' }}>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
+                                                {isDeposit ? 'Deposit' : 'Payout'}
+                                                <span style={{ fontWeight: 600, color: isDeposit ? '#10b981' : '#f43f5e', marginLeft: '0.5rem' }}>
+                                                    {isDeposit ? '+' : '-'} {(tx.amount_aed || 0).toLocaleString()} AED
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                {new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                <span>•</span>
+                                                {new Date(tx.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )) : (
-                                <div className="text-slate-400 text-sm italic">No recent activity</div>
+                                )
+                            }) : (
+                                <div className="text-slate-400 text-sm italic py-4">No recent activity</div>
                             )}
                         </div>
                     </div>
-
-
                 </div>
             </aside>
 
