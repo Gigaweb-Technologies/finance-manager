@@ -1,19 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, MapPin, Contact, UserPlus, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
-    const [form, setForm] = useState(client ? {
-        name: client.name || '',
-        email: client.email || '',
-        phone: client.phone || '',
-        address: client.address || '',
-        contact_person: client.contact_person || '',
-        photo_url: client.photo_url || '',
-        currency: client.currency || 'AED'
-    } : {
+    const [form, setForm] = useState({
         name: '',
         email: '',
         phone: '',
@@ -24,6 +16,32 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            if (client) {
+                setForm({
+                    name: client.name || '',
+                    email: client.email || '',
+                    phone: client.phone || '',
+                    address: client.address || '',
+                    contact_person: client.contact_person || '',
+                    photo_url: client.photo_url || '',
+                    currency: client.currency || 'AED'
+                });
+            } else {
+                setForm({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    address: '',
+                    contact_person: '',
+                    photo_url: '',
+                    currency: 'AED'
+                });
+            }
+        }
+    }, [client, isOpen]);
 
     if (!isOpen) return null;
 

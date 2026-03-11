@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, DollarSign, List, Calendar, Loader2 } from 'lucide-react';
+import { X, User, DollarSign, List, Calendar, Loader2, Edit3 } from 'lucide-react';
 import axios from 'axios';
 
 const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transaction, clients }) => {
@@ -57,26 +57,38 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
 
     return (
         <div className="modal-overlay modal-overlay-blur">
-            <div className="modal-premium animate-fade max-w-xl">
-                <div className="modal-header-premium">
-                    <h3 className="font-bold text-base tracking-tight text-slate-800">
-                        Edit Transaction Details
-                    </h3>
-                    <button onClick={onClose} className="hover:opacity-70 transition-opacity">
-                        <X size={20} />
+            <div className="modal-payout-container animate-fade" style={{ maxWidth: '600px' }}>
+                <div className="modal-client-header">
+                    <div className="modal-client-header-left">
+                        <div className="modal-client-icon-circle">
+                            <Edit3 size={22} />
+                        </div>
+                        <div>
+                            <h3 className="modal-client-title">
+                                Edit Transaction Details
+                            </h3>
+                            <p className="modal-client-subtitle">
+                                Update the details of this transaction record
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="modal-client-close-btn">
+                        <X size={18} />
                     </button>
                 </div>
 
-                <div className="modal-body-premium">
-                    {error && <div className="auth-error-badge mb-4">{error}</div>}
+                <div className="modal-client-body">
+                    {error && <div className="auth-error-badge mb-6">{error}</div>}
 
-                    <form onSubmit={handleSubmit} className="modal-form-premium">
-                        <div className="modal-grid-premium">
-                            <div className="payout-field-group">
-                                <label className="payout-label">Client</label>
-                                <div className="premium-input-wrapper">
-                                    <User className="input-icon" size={18} />
+                    <form onSubmit={handleSubmit} className="client-form-grid">
+                        <div className="client-form-row">
+                            <div>
+                                <label className="client-label">Client</label>
+                                <div className="client-input-wrapper">
+                                    <User className="client-input-icon" size={18} />
                                     <select
+                                        className="client-input"
+                                        style={{ paddingLeft: '2.85rem' }}
                                         value={form.client_id}
                                         onChange={(e) => {
                                             const cid = e.target.value;
@@ -90,11 +102,13 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
                                     </select>
                                 </div>
                             </div>
-                            <div className="payout-field-group">
-                                <label className="payout-label">Type</label>
-                                <div className="premium-input-wrapper">
-                                    <List className="input-icon" size={18} />
+                            <div>
+                                <label className="client-label">Type</label>
+                                <div className="client-input-wrapper">
+                                    <List className="client-input-icon" size={18} />
                                     <select
+                                        className="client-input"
+                                        style={{ paddingLeft: '2.85rem' }}
                                         value={form.type}
                                         onChange={(e) => setForm({ ...form, type: e.target.value })}
                                         required
@@ -106,97 +120,110 @@ const EditTransactionModal = ({ isOpen, onClose, onTransactionUpdated, transacti
                             </div>
                         </div>
 
-                        <div className="modal-grid-premium">
-                            <div className="payout-field-group">
-                                <label className="payout-label">Source Amount ({form.type === 'IN' ? (form.currency || 'AED') : 'AED'})</label>
-                                <div className="premium-input-wrapper">
-                                    <span className="input-icon text-[10px] font-bold">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'}</span>
+                        <div className="client-form-row">
+                            <div>
+                                <label className="client-label">Source Amount ({form.type === 'IN' ? (form.currency || 'AED') : 'AED'})</label>
+                                <div className="client-input-wrapper">
+                                    <span className="client-input-icon text-[10px] font-bold" style={{ left: '1rem' }}>{form.type === 'IN' ? (form.currency || 'AED') : 'AED'}</span>
                                     <input
+                                        className="client-input"
                                         type="number"
                                         step="0.01"
                                         value={form.amount_naira}
                                         onChange={(e) => setForm({ ...form, amount_naira: e.target.value })}
                                         placeholder="0.00"
+                                        style={{ paddingLeft: '3.5rem' }}
                                     />
                                 </div>
                             </div>
-                            <div className="payout-field-group">
-                                <label className="payout-label">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'} Amount</label>
-                                <div className="premium-input-wrapper">
-                                    <span className="input-icon text-[10px] font-bold">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'}</span>
+                            <div>
+                                <label className="client-label">{form.type === 'IN' ? (form.currency || 'AED') : 'AED'} Amount</label>
+                                <div className="client-input-wrapper">
+                                    <span className="client-input-icon text-[10px] font-bold" style={{ left: '1rem' }}>{form.type === 'IN' ? (form.currency || 'AED') : 'AED'}</span>
                                     <input
+                                        className="client-input"
                                         type="number"
                                         step="0.01"
                                         required
                                         value={form.amount_aed}
                                         onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
                                         placeholder="0.00"
+                                        style={{ paddingLeft: '3.5rem' }}
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="payout-field-group">
-                            <label className="payout-label">Transaction Date</label>
-                            <div className="premium-input-wrapper">
-                                <Calendar className="input-icon" size={18} />
-                                <input
-                                    type="date"
-                                    value={form.date}
-                                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                                />
+                        <div className="client-form-row">
+                            <div style={{ flex: 1 }}>
+                                <label className="client-label">Transaction Date</label>
+                                <div className="client-input-wrapper">
+                                    <Calendar className="client-input-icon" size={18} />
+                                    <input
+                                        className="client-input"
+                                        type="date"
+                                        value={form.date}
+                                        onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                        style={{ paddingLeft: '2.85rem' }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label className="client-label">Exchange Rate (1 {form.type === 'IN' ? (form.currency || 'AED') : 'AED'} = ? NGN)</label>
+                                <div className="client-input-wrapper">
+                                    <DollarSign className="client-input-icon" size={18} />
+                                    <input
+                                        className="client-input"
+                                        type="number"
+                                        step="0.01"
+                                        value={form.exchange_rate}
+                                        onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
+                                        placeholder="e.g. 450.5"
+                                        style={{ paddingLeft: '2.85rem' }}
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="payout-field-group">
-                            <label className="payout-label">Exchange Rate (1 {form.type === 'IN' ? (form.currency || 'AED') : 'AED'} = ? NGN)</label>
-                            <div className="premium-input-wrapper">
-                                <DollarSign className="input-icon" size={18} />
+                        <div>
+                            <label className="client-label">Recipient / Source</label>
+                            <div className="client-input-wrapper">
+                                <User className="client-input-icon" size={18} />
                                 <input
-                                    type="number"
-                                    step="0.01"
-                                    value={form.exchange_rate}
-                                    onChange={(e) => setForm({ ...form, exchange_rate: e.target.value })}
-                                    placeholder="e.g. 450.5"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="payout-field-group">
-                            <label className="payout-label">Recipient / Source</label>
-                            <div className="premium-input-wrapper">
-                                <User className="input-icon" size={18} />
-                                <input
+                                    className="client-input"
                                     type="text"
                                     value={form.recipient}
                                     onChange={(e) => setForm({ ...form, recipient: e.target.value })}
                                     placeholder="Enter recipient name"
+                                    style={{ paddingLeft: '2.85rem' }}
                                 />
                             </div>
                         </div>
 
-                        <div className="payout-field-group">
-                            <label className="payout-label">Description / Notes</label>
+                        <div>
+                            <label className="client-label">Description / Notes</label>
                             <textarea
                                 value={form.description}
                                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                                 placeholder="Add any relevant notes"
-                                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all text-sm min-h-[80px]"
+                                className="client-input"
+                                style={{ padding: '1rem', minHeight: '80px', resize: 'vertical' }}
                             />
                         </div>
 
-                        <div className="modal-actions-premium border-t border-slate-100 pt-6">
+                        <div className="modal-client-footer">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="btn-premium btn-primary-premium flex-1 justify-center shadow-lg shadow-violet-100"
+                                className="btn-client-confirm"
                             >
-                                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Update Transaction'}
+                                {loading && <Loader2 className="inline mr-2 animate-spin" size={16} />}
+                                Update Transaction
                             </button>
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="btn-premium border border-slate-200 bg-white text-slate-600 flex-1 justify-center"
+                                className="btn-client-cancel"
                             >
                                 Cancel
                             </button>
