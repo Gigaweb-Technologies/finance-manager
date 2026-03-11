@@ -30,7 +30,6 @@ export async function PUT(request, { params }) {
         const oldTx = await db.getAsync('SELECT * FROM transactions WHERE id = ?', [id]);
         if (!oldTx) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
 
-        await db.runAsync('BEGIN TRANSACTION');
         try {
             // 1. Reverse old impact
             const oldBalanceChange = oldTx.type === 'IN' ? oldTx.amount_aed : -oldTx.amount_aed;
@@ -60,10 +59,9 @@ export async function PUT(request, { params }) {
             const newBalanceChange = newType === 'IN' ? newAmountAed : -newAmountAed;
             await db.runAsync('UPDATE clients SET balance_aed = balance_aed + ? WHERE id = ?', [newBalanceChange, newClientId]);
 
-            await db.runAsync('COMMIT');
             return NextResponse.json({ success: true });
         } catch (err) {
-            await db.runAsync('ROLLBACK');
+            console.error('Transaction PUT error:', err);
             throw err;
         }
     } catch (err) {
@@ -81,7 +79,6 @@ export async function DELETE(request, { params }) {
         const tx = await db.getAsync('SELECT * FROM transactions WHERE id = ?', [id]);
         if (!tx) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
 
-        await db.runAsync('BEGIN TRANSACTION');
         try {
             // Reverse impact
             const balanceChange = tx.type === 'IN' ? tx.amount_aed : -tx.amount_aed;
@@ -90,10 +87,9 @@ export async function DELETE(request, { params }) {
             // Delete transaction
             await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
 
-            await db.runAsync('COMMIT');
             return NextResponse.json({ success: true });
         } catch (err) {
-            await db.runAsync('ROLLBACK');
+            console.error('Transaction DELETE error:', err);
             throw err;
         }
     } catch (err) {

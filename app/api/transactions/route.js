@@ -31,8 +31,6 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Use a transaction for atomic update
-        await db.runAsync('BEGIN TRANSACTION');
         try {
             const sql = `INSERT INTO transactions (client_id, type, amount_naira, amount_aed, exchange_rate, recipient, description, transaction_unique_id, date) 
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -43,10 +41,9 @@ export async function POST(request) {
             const balanceChange = type === 'IN' ? amount_aed : -amount_aed;
             await db.runAsync('UPDATE clients SET balance_aed = balance_aed + ? WHERE id = ?', [balanceChange, client_id]);
 
-            await db.runAsync('COMMIT');
             return NextResponse.json({ success: true, transaction_id: result.lastID });
         } catch (err) {
-            await db.runAsync('ROLLBACK');
+            console.error('Transaction POST error:', err);
             if (err.message.includes('UNIQUE constraint failed')) {
                 return NextResponse.json({ error: 'Transaction already exists' }, { status: 409 });
             }
