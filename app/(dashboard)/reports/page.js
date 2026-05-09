@@ -48,8 +48,8 @@ function getMonthOptions(transactions) {
     [...transactions]
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .forEach(tx => {
-            const d    = new Date(tx.date);
-            const key  = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const d = new Date(tx.date);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
             if (!seen.has(key)) { seen.add(key); options.push({ key, label }); }
         });
@@ -58,31 +58,48 @@ function getMonthOptions(transactions) {
 
 export default function ReportsPage() {
     const { clients, allTransactions, loading } = useData();
-    const [activeTab, setActiveTab]             = useState('analytics'); // 'analytics' | 'statement'
+    const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'statement'
 
     // ── Analytics filters ─────────────────────────────────────────────────
-    const [timeFilter, setTimeFilter]   = useState('Last 30 Days');
+    const [timeFilter, setTimeFilter] = useState('Last 30 Days');
     const [clientFilter, setClientFilter] = useState('All Clients');
     const [customStart, setCustomStart] = useState('');
-    const [customEnd, setCustomEnd]     = useState('');
+    const [customEnd, setCustomEnd] = useState('');
 
     // ── Statement filters ─────────────────────────────────────────────────
     const monthOptions = useMemo(() => getMonthOptions(allTransactions || []), [allTransactions]);
-    const [stmtMonth, setStmtMonth]           = useState('');
-    const [stmtClient, setStmtClient]         = useState('All Clients');
-    const [collapsedDays, setCollapsedDays]   = useState({});
+    const [stmtMonth, setStmtMonth] = useState('');
+    const [stmtClient, setStmtClient] = useState('All Clients');
+    const [collapsedDays, setCollapsedDays] = useState({});
 
-    const selectedMonthKey  = stmtMonth || (monthOptions[0]?.key ?? '');
-    const stmtMonthIndex    = monthOptions.findIndex(m => m.key === selectedMonthKey);
-    const canGoPrev         = stmtMonthIndex < monthOptions.length - 1;
-    const canGoNext         = stmtMonthIndex > 0;
-    const goPrevMonth       = () => canGoPrev && setStmtMonth(monthOptions[stmtMonthIndex + 1].key);
-    const goNextMonth       = () => canGoNext && setStmtMonth(monthOptions[stmtMonthIndex - 1].key);
+    const selectedMonthKey = stmtMonth || (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
+    const selectedMonthLabel = useMemo(() => {
+        const [yr, mo] = selectedMonthKey.split('-').map(Number);
+        if (!yr || !mo) return '—';
+        return new Date(yr, mo - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    }, [selectedMonthKey]);
+
+    const goPrevMonth = () => {
+        const [yr, mo] = selectedMonthKey.split('-').map(Number);
+        const d = new Date(yr, mo - 2, 1);
+        setStmtMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    };
+    const goNextMonth = () => {
+        const [yr, mo] = selectedMonthKey.split('-').map(Number);
+        const d = new Date(yr, mo, 1);
+        setStmtMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    };
+    const canGoPrev = true; // Allow navigating back indefinitely
+    const canGoNext = true; // Allow navigating forward indefinitely
 
     // ── Filtered transactions (analytics) ─────────────────────────────────
     const filteredTransactions = useMemo(() => {
         if (!allTransactions || allTransactions.length === 0) return [];
-        const now   = new Date();
+        const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
         return allTransactions.filter(tx => {
@@ -117,42 +134,65 @@ export default function ReportsPage() {
     }, [allTransactions, timeFilter, clientFilter, customStart, customEnd]);
 
     // ── Statement data ─────────────────────────────────────────────────────
-    const statementDays = useMemo(() => {
-        if (!allTransactions || allTransactions.length === 0) return [];
+    const statementData = useMemo(() => {
+        if (!allTransactions || allTransactions.length === 0) return { days: [], payoutRecipients: [] };
         const [yr, mo] = (selectedMonthKey || '').split('-').map(Number);
-        if (!yr || !mo) return [];
+        if (!yr || !mo) return { days: [], payoutRecipients: [] };
 
-        const filtered = allTransactions.filter(tx => {
+        const monthEnd = new Date(yr, mo, 0);
+
+        // Filter transactions for this month
+        const monthTx = allTransactions.filter(tx => {
             const d = new Date(tx.date);
-            if (d.getFullYear() !== yr || d.getMonth() + 1 !== mo) return false;
-            if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
-            return true;
+            return d.getFullYear() === yr && d.getMonth() + 1 === mo;
         });
 
-        // Group by day
-        const byDay = {};
-        filtered.forEach(tx => {
-            const d   = new Date(tx.date);
-            const key = `${yr}-${String(mo).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            if (!byDay[key]) byDay[key] = { dateKey: key, date: d, rows: [] };
-            byDay[key].rows.push(tx);
+        // 1. Calculate Payout Recipients (Monthly Summary) - Right Side
+        const recipientsMap = {};
+        monthTx.filter(tx => tx.type === 'OUT').forEach(tx => {
+            const name = tx.recipient || tx.narration || 'Unknown Recipient';
+            if (!recipientsMap[name]) recipientsMap[name] = 0;
+            recipientsMap[name] += (tx.amount_aed || 0);
         });
+        const payoutRecipients = Object.entries(recipientsMap)
+            .map(([name, total]) => ({ name, total }))
+            .sort((a, b) => b.total - a.total);
 
-        return Object.values(byDay)
-            .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
-            .map(group => {
-                const totalNaira = group.rows
-                    .filter(t => t.type === 'IN')
-                    .reduce((s, t) => s + (t.amount_naira || 0), 0);
-                const totalAed = group.rows
-                    .reduce((s, t) => s + (t.type === 'IN' ? (t.amount_aed || 0) : -(t.amount_aed || 0)), 0);
-                return { ...group, totalNaira, totalAed };
+        // 2. Generate All Days and calculate daily inflow totals - Left Side
+        const days = [];
+        let runningMainTotal = 0;
+
+        for (let d = 1; d <= monthEnd.getDate(); d++) {
+            const date = new Date(yr, mo - 1, d);
+            const dateKey = `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            // For inflows, we optionally filter by client if stmtClient !== 'All Clients'
+            const inflows = monthTx.filter(tx => {
+                const txD = new Date(tx.date);
+                if (txD.getDate() !== d || tx.type !== 'IN') return false;
+                if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
+                return true;
             });
+
+            const dayTotal = inflows.reduce((sum, tx) => sum + (tx.amount_naira || 0), 0);
+            runningMainTotal += dayTotal;
+
+            days.push({
+                dateKey,
+                date,
+                inflows,
+                dayTotal,
+                mainTotal: runningMainTotal
+            });
+        }
+
+        return { days, payoutRecipients };
     }, [allTransactions, selectedMonthKey, stmtClient]);
 
-    const grandTotalNaira = useMemo(() => statementDays.reduce((s, d) => s + d.totalNaira, 0), [statementDays]);
-    const grandTotalAed   = useMemo(() => statementDays.reduce((s, d) => s + d.totalAed,   0), [statementDays]);
-    const grandTxCount    = useMemo(() => statementDays.reduce((s, d) => s + d.rows.length, 0), [statementDays]);
+    const statementDays = statementData.days;
+    const payoutRecipients = statementData.payoutRecipients;
+    const grandTotalNaira = useMemo(() => statementDays.reduce((s, d) => s + d.dayTotal, 0), [statementDays]);
+    const grandTxCount = useMemo(() => statementDays.reduce((s, d) => s + d.inflows.length, 0), [statementDays]);
 
     const toggleDay = (key) => setCollapsedDays(p => ({ ...p, [key]: !p[key] }));
 
@@ -166,17 +206,17 @@ export default function ReportsPage() {
             let groupKey, displayLabel;
 
             if (groupByDay) {
-                groupKey     = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                groupKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                 displayLabel = date.toLocaleString('default', { month: 'short', day: 'numeric' });
             } else {
-                groupKey     = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                groupKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 displayLabel = date.toLocaleString('default', { month: 'short', year: 'numeric' });
             }
 
             if (!acc[groupKey]) acc[groupKey] = { sortKey: groupKey, name: displayLabel, volume: 0, inflows: 0, payouts: 0 };
 
             if (tx.type === 'IN') {
-                acc[groupKey].volume  += (tx.amount_naira || 0) / 1000000;
+                acc[groupKey].volume += (tx.amount_naira || 0) / 1000000;
                 acc[groupKey].inflows += (tx.amount_naira || 0) / 1000000;
             } else {
                 acc[groupKey].payouts += ((tx.amount_aed || 0) * (tx.exchange_rate || 1650)) / 1000000;
@@ -186,7 +226,7 @@ export default function ReportsPage() {
 
         const limitedData = Object.values(aggregated).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).slice(-24);
         return {
-            trendData:      limitedData.map(d => ({ name: d.name, volume: parseFloat(d.volume.toFixed(2)) })),
+            trendData: limitedData.map(d => ({ name: d.name, volume: parseFloat(d.volume.toFixed(2)) })),
             comparisonData: limitedData.map(d => ({ name: d.name, inflows: parseFloat(d.inflows.toFixed(2)), payouts: parseFloat(d.payouts.toFixed(2)) }))
         };
     }, [filteredTransactions, timeFilter]);
@@ -195,7 +235,7 @@ export default function ReportsPage() {
     const topClients = useMemo(() => {
         return clients.map(client => {
             const clientTx = filteredTransactions.filter(tx => tx.client_id === client.id);
-            const volume   = clientTx.reduce((sum, tx) => sum + (tx.amount_naira || 0), 0);
+            const volume = clientTx.reduce((sum, tx) => sum + (tx.amount_naira || 0), 0);
             return { ...client, totalVolume: volume, txCount: clientTx.length };
         }).sort((a, b) => b.totalVolume - a.totalVolume).slice(0, 5);
     }, [clients, filteredTransactions]);
@@ -205,17 +245,17 @@ export default function ReportsPage() {
         if (filteredTransactions.length === 0) return { avgTx: 0, freq: 0, convRate: 1650, txCount: 0 };
         const totalVolume = filteredTransactions.reduce((acc, tx) => acc + (tx.amount_naira || 0), 0);
         let days = 30;
-        if (timeFilter === 'Last 90 Days')  days = 90;
+        if (timeFilter === 'Last 90 Days') days = 90;
         else if (timeFilter === 'Year to Date') days = Math.max(1, Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000));
         else if (timeFilter === 'All Time') days = 365;
         else if (timeFilter === 'Custom Range' && customStart && customEnd) {
             days = Math.max(1, Math.floor((new Date(customEnd) - new Date(customStart)) / 86400000));
         }
         return {
-            avgTx:    totalVolume / filteredTransactions.length,
-            freq:     filteredTransactions.length / days,
+            avgTx: totalVolume / filteredTransactions.length,
+            freq: filteredTransactions.length / days,
             convRate: allTransactions?.[0]?.exchange_rate || 1650,
-            txCount:  filteredTransactions.length
+            txCount: filteredTransactions.length
         };
     }, [filteredTransactions, timeFilter, customStart, customEnd, allTransactions]);
 
@@ -228,18 +268,18 @@ export default function ReportsPage() {
             return [
                 d.toLocaleDateString(),
                 d.toLocaleTimeString(),
-                `"${(tx.client_name  || '').replace(/"/g, '""')}"`,
-                `"${(tx.recipient   || tx.narration || '').replace(/"/g, '""')}"`,
+                `"${(tx.client_name || '').replace(/"/g, '""')}"`,
+                `"${(tx.recipient || tx.narration || '').replace(/"/g, '""')}"`,
                 tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
                 tx.amount_naira || '',
                 `${tx.type === 'IN' ? '+' : '-'}${tx.amount_aed}`,
                 tx.transaction_unique_id || tx.id
             ].join(',');
         });
-        const csv    = [headers.join(','), ...rows].join('\n');
-        const blob   = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url    = URL.createObjectURL(blob);
-        const link   = document.createElement('a');
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
         const client = clientFilter === 'All Clients' ? 'all_clients' : `client_${clientFilter}`;
         link.setAttribute('href', url);
         link.setAttribute('download', `finance_report_${client}_${timeFilter.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -275,10 +315,10 @@ export default function ReportsPage() {
             ].join(','));
             rows.push('');
         });
-        rows.push(['MONTHLY GRAND TOTAL','','','', grandTotalNaira, grandTotalAed.toFixed(2), ''].join(','));
-        const csv  = rows.join('\n');
+        rows.push(['MONTHLY GRAND TOTAL', '', '', '', grandTotalNaira, grandTotalAed.toFixed(2), ''].join(','));
+        const csv = rows.join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url  = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
         link.setAttribute('download', `statement_${selectedMonthKey}_${stmtClient === 'All Clients' ? 'all' : stmtClient}.csv`);
@@ -340,7 +380,7 @@ export default function ReportsPage() {
                         boxShadow: activeTab === 'statement' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                     }}
                 >
-                    <TableProperties size={16} /> Daily Statement
+                    <TableProperties size={16} /> Monthly Statement
                 </button>
             </div>
 
@@ -397,8 +437,8 @@ export default function ReportsPage() {
                                     <AreaChart data={trendData}>
                                         <defs>
                                             <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%"  stopColor="#a855f7" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0}   />
+                                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -517,14 +557,13 @@ export default function ReportsPage() {
             )}
 
             {/* ════════════════════════════════════════════════════════════
-                DAILY STATEMENT TAB
+                MONTHLY STATEMENT TAB
             ════════════════════════════════════════════════════════════ */}
             {activeTab === 'statement' && (
                 <>
                     {/* Statement header / filters */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.75rem' }}>
                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* Month navigator — prev/next arrows */}
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -562,7 +601,7 @@ export default function ReportsPage() {
                                     textAlign: 'center',
                                     letterSpacing: '0.01em',
                                 }}>
-                                    {monthOptions.find(m => m.key === selectedMonthKey)?.label ?? '—'}
+                                    {selectedMonthLabel}
                                 </span>
                                 <button
                                     onClick={goNextMonth}
@@ -584,7 +623,6 @@ export default function ReportsPage() {
                                 </button>
                             </div>
 
-                            {/* Client picker */}
                             <div className="report-select-wrapper">
                                 <select
                                     className="report-select"
@@ -608,204 +646,149 @@ export default function ReportsPage() {
                         </button>
                     </div>
 
-                    {/* Monthly summary banner */}
-                    {statementDays.length > 0 && (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(3, 1fr)',
-                            gap: '1rem',
-                            marginBottom: '1.5rem',
-                        }}>
-                            <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #7c3aed' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Total Inflows (NGN)</div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b' }}>₦ {fmt(grandTotalNaira)}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem', fontWeight: 600 }}>{monthOptions.find(m => m.key === selectedMonthKey)?.label}</div>
-                            </div>
-                            <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #f59e0b' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Net AED Balance</div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: grandTotalAed >= 0 ? '#10b981' : '#ef4444' }}>
-                                    {grandTotalAed >= 0 ? '+' : ''}{fmt(grandTotalAed, 2)} AED
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem', fontWeight: 600 }}>Inflows minus payouts</div>
-                            </div>
-                            <div className="premium-card" style={{ padding: '1.25rem', borderLeft: '4px solid #22c55e' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Total Transactions</div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1e293b' }}>{fmt(grandTxCount)}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem', fontWeight: 600 }}>Across {statementDays.length} active days</div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Daily statement groups */}
-                    {statementDays.length === 0 ? (
-                        <div className="premium-card" style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
-                            <TableProperties size={40} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
-                            <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>No transactions found</p>
-                            <p style={{ fontSize: '0.875rem', marginTop: '0.35rem' }}>Try selecting a different month or client.</p>
-                        </div>
-                    ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>
+                        {/* LEFT COLUMN: DAILY TIMELINE */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {statementDays.map(day => {
-                                const isCollapsed = collapsedDays[day.dateKey];
-                                const dayLabel    = new Date(day.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
-                                const dayInflows  = day.rows.filter(t => t.type === 'IN').length;
-                                const dayPayouts  = day.rows.filter(t => t.type !== 'IN').length;
+                            {statementDays.length === 0 ? (
+                                <div className="premium-card" style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
+                                    <TableProperties size={40} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
+                                    <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>No data for selected period</p>
+                                </div>
+                            ) : (
+                                statementDays.map(day => {
+                                    const isCollapsed = collapsedDays[day.dateKey];
+                                    const dayLabel = new Date(day.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                                    const hasInflows = day.inflows.length > 0;
 
-                                return (
-                                    <div key={day.dateKey} className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
-                                        {/* Day header — clickable to collapse */}
-                                        <div
-                                            onClick={() => toggleDay(day.dateKey)}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                padding: '1rem 1.5rem',
-                                                cursor: 'pointer',
-                                                background: '#fafafa',
-                                                borderBottom: isCollapsed ? 'none' : '1px solid #f1f5f9',
-                                                userSelect: 'none',
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1rem' }}>
-                                                    {new Date(day.date).getDate()}
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e293b' }}>{dayLabel}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, marginTop: '0.1rem' }}>
-                                                        {day.rows.length} transaction{day.rows.length !== 1 ? 's' : ''}
-                                                        {dayInflows > 0 && <span style={{ marginLeft: '0.5rem', color: '#10b981' }}>· {dayInflows} inflow{dayInflows !== 1 ? 's' : ''}</span>}
-                                                        {dayPayouts > 0 && <span style={{ marginLeft: '0.5rem', color: '#ef4444' }}>· {dayPayouts} payout{dayPayouts !== 1 ? 's' : ''}</span>}
+                                    return (
+                                        <div key={day.dateKey} className="premium-card" style={{ padding: 0, overflow: 'hidden', opacity: hasInflows ? 1 : 0.6, transition: 'opacity 0.2s' }}>
+                                            <div
+                                                onClick={() => hasInflows && toggleDay(day.dateKey)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '1rem 1.5rem',
+                                                    cursor: hasInflows ? 'pointer' : 'default',
+                                                    background: hasInflows ? '#fafafa' : '#ffffff',
+                                                    userSelect: 'none',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                                                    <div style={{
+                                                        width: 42,
+                                                        height: 42,
+                                                        borderRadius: 12,
+                                                        background: hasInflows ? 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)' : '#f1f5f9',
+                                                        color: hasInflows ? 'white' : '#94a3b8',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontWeight: 800,
+                                                        fontSize: '1.1rem',
+                                                        boxShadow: hasInflows ? '0 4px 12px rgba(124, 58, 237, 0.2)' : 'none'
+                                                    }}>
+                                                        {new Date(day.date).getDate()}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e293b' }}>{dayLabel}</div>
+                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+                                                            {hasInflows ? `${day.inflows.length} inflow transaction${day.inflows.length !== 1 ? 's' : ''}` : 'No inflows recorded'}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Day Inflows</div>
-                                                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1e293b' }}>₦ {fmt(day.totalNaira)}</div>
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Net AED</div>
-                                                    <div style={{ fontWeight: 800, fontSize: '1rem', color: day.totalAed >= 0 ? '#10b981' : '#ef4444' }}>
-                                                        {day.totalAed >= 0 ? '+' : ''}{fmt(day.totalAed, 2)}
-                                                    </div>
-                                                </div>
-                                                <div style={{ color: '#94a3b8' }}>
-                                                    {isCollapsed ? <ChevronRight size={18} /> : <ChevronUp size={18} />}
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        {/* Transaction rows */}
-                                        {!isCollapsed && (
-                                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                                <thead style={{ background: '#f8fafc' }}>
-                                                    <tr>
-                                                        {['Client', 'Recipient / Narration', 'Type', 'NGN Amount', 'AED Amount'].map(h => (
-                                                            <th key={h} style={{
-                                                                padding: '0.6rem 1.5rem',
-                                                                textAlign: h === 'NGN Amount' || h === 'AED Amount' ? 'right' : 'left',
-                                                                fontSize: '0.7rem',
-                                                                fontWeight: 700,
-                                                                color: '#94a3b8',
-                                                                textTransform: 'uppercase',
-                                                                letterSpacing: '0.05em',
-                                                                borderBottom: '1px solid #f1f5f9',
-                                                                whiteSpace: 'nowrap',
-                                                            }}>{h}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {day.rows.map((tx, i) => (
-                                                        <tr key={tx.id || i} style={{ borderBottom: '1px solid #f8fafc' }} className="client-table-row">
-                                                            <td style={{ padding: '0.85rem 1.5rem' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                                                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800, flexShrink: 0 }}>
-                                                                        {(tx.client_name || 'NA').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Day Total</div>
+                                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: hasInflows ? '#1e293b' : '#cbd5e1' }}>₦ {fmt(day.dayTotal)}</div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Main Total</div>
+                                                        <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#7c3aed', background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>₦ {fmt(day.mainTotal)}</div>
+                                                    </div>
+                                                    {hasInflows && (
+                                                        <div style={{ color: '#94a3b8' }}>
+                                                            {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {hasInflows && !isCollapsed && (
+                                                <div style={{ padding: '0.5rem 1.5rem 1.5rem', borderTop: '1px solid #f1f5f9' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
+                                                        {day.inflows.map((tx, idx) => (
+                                                            <div key={tx.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#ffffff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, border: '1px solid #e2e8f0' }}>
+                                                                        {(tx.client_name || 'N A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)}
                                                                     </div>
-                                                                    <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1e293b' }}>{tx.client_name || '—'}</span>
+                                                                    <div>
+                                                                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>{tx.client_name}</div>
+                                                                        <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>{tx.narration || 'Regular Inflow'}</div>
+                                                                    </div>
                                                                 </div>
-                                                            </td>
-                                                            <td style={{ padding: '0.85rem 1.5rem', fontSize: '0.82rem', color: '#64748b', fontWeight: 500, maxWidth: 240 }}>
-                                                                {tx.recipient || tx.narration || <span style={{ color: '#cbd5e1' }}>—</span>}
-                                                            </td>
-                                                            <td style={{ padding: '0.85rem 1.5rem' }}>
-                                                                <span style={tx.type === 'IN'
-                                                                    ? { background: '#ecfdf5', color: '#10b981', border: '1px solid #d1fae5', padding: '0.2rem 0.65rem', borderRadius: 6, fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }
-                                                                    : { background: '#fff1f2', color: '#e11d48', border: '1px solid #ffe4e6', padding: '0.2rem 0.65rem', borderRadius: 6, fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }
-                                                                }>
-                                                                    {tx.type === 'IN' ? <ArrowDownLeft size={11} /> : <ArrowUpRight size={11} />}
-                                                                    {tx.type === 'IN' ? 'INFLOW' : 'PAYOUT'}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ padding: '0.85rem 1.5rem', textAlign: 'right', fontWeight: 700, fontSize: '0.85rem', color: tx.type === 'IN' ? '#1e293b' : '#94a3b8' }}>
-                                                                {tx.type === 'IN' ? `₦ ${fmt(tx.amount_naira)}` : <span style={{ color: '#cbd5e1' }}>—</span>}
-                                                            </td>
-                                                            <td style={{ padding: '0.85rem 1.5rem', textAlign: 'right', fontWeight: 700, fontSize: '0.85rem', color: tx.type === 'IN' ? '#10b981' : '#ef4444' }}>
-                                                                {tx.type === 'IN' ? '+' : '-'}{fmt(tx.amount_aed, 2)}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                <div style={{ textAlign: 'right' }}>
+                                                                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#059669' }}>+₦ {fmt(tx.amount_naira)}</div>
+                                                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{tx.amount_aed} AED</div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
 
-                                                    {/* Day total row */}
-                                                    <tr style={{ background: 'linear-gradient(90deg, #fefce8 0%, #fef9c3 100%)', borderTop: '2px solid #fde68a' }}>
-                                                        <td colSpan={2} style={{ padding: '0.9rem 1.5rem' }}>
-                                                            <span style={{ fontWeight: 800, fontSize: '0.8rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                                                TOTAL — {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                                            </span>
-                                                        </td>
-                                                        <td style={{ padding: '0.9rem 1.5rem' }}>
-                                                            <span style={{ fontSize: '0.7rem', color: '#a16207', fontWeight: 700 }}>
-                                                                {day.rows.length} tx
-                                                            </span>
-                                                        </td>
-                                                        <td style={{ padding: '0.9rem 1.5rem', textAlign: 'right', fontWeight: 800, fontSize: '0.92rem', color: '#1e293b' }}>
-                                                            ₦ {fmt(day.totalNaira)}
-                                                        </td>
-                                                        <td style={{ padding: '0.9rem 1.5rem', textAlign: 'right', fontWeight: 800, fontSize: '0.92rem', color: day.totalAed >= 0 ? '#10b981' : '#ef4444' }}>
-                                                            {day.totalAed >= 0 ? '+' : ''}{fmt(day.totalAed, 2)} AED
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        )}
+                        {/* RIGHT COLUMN: MONTHLY PAYOUT RECIPIENTS */}
+                        <div style={{ position: 'sticky', top: 'calc(var(--header-height) + 1.5rem)' }}>
+                            <div className="premium-card" style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff1f2', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <ArrowUpRight size={20} />
                                     </div>
-                                );
-                            })}
+                                    <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1e293b' }}>Payout Recipients</h3>
+                                </div>
 
-                            {/* Grand total footer */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'flex-end',
-                                alignItems: 'center',
-                                gap: '3rem',
-                                background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
-                                borderRadius: 16,
-                                padding: '1.25rem 2rem',
-                                marginTop: '0.5rem',
-                            }}>
-                                <div style={{ textAlign: 'left' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.2rem' }}>Monthly Grand Total</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
-                                        {monthOptions.find(m => m.key === selectedMonthKey)?.label} · {grandTxCount} transactions
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    {payoutRecipients.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', borderRadius: 12, border: '1px dashed #e2e8f0' }}>
+                                            <p style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>No payouts this month</p>
+                                        </div>
+                                    ) : (
+                                        payoutRecipients.map((recipient, idx) => (
+                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#ffffff', borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                                                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f8fafc', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800, border: '1px solid #f1f5f9' }}>
+                                                        {recipient.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#334155', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{recipient.name}</span>
+                                                </div>
+                                                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#e11d48' }}>
+                                                    {fmt(recipient.total, 2)} <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>AED</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Total Monthly Inflow</span>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>₦ {fmt(grandTotalNaira)}</span>
                                     </div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>Total Inflows (NGN)</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'white' }}>₦ {fmt(grandTotalNaira)}</div>
-                                </div>
-                                <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.2)' }} />
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>Net AED Balance</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: grandTotalAed >= 0 ? '#86efac' : '#fca5a5' }}>
-                                        {grandTotalAed >= 0 ? '+' : ''}{fmt(grandTotalAed, 2)} AED
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Total Payouts</span>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#e11d48' }}>{fmt(payoutRecipients.reduce((s, r) => s + r.total, 0), 2)} AED</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
                 </>
             )}
         </div>
