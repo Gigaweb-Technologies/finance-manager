@@ -196,7 +196,7 @@ export default function ClientsPage() {
                                     <th>Client</th>
                                     <th>Status</th>
                                     <th>Base Currency</th>
-                                    <th>Ledger Balance</th>
+                                    <th>Ledger Balance (AED)</th>
                                     <th>Total Volume (AED)</th>
                                     <th>Last Activity</th>
                                     <th className="text-right">Actions</th>
@@ -241,7 +241,7 @@ export default function ClientsPage() {
                                             </td>
                                             <td>
                                                 <div className="font-bold text-slate-700">
-                                                    {client.currency || 'AED'} {client.balanceNative.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    AED {client.balance_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
                                                     {client.txCount} transactions
@@ -356,11 +356,11 @@ export default function ClientsPage() {
                         border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
                     }}>
                         <div>
-                            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Native Balance</div>
+                            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Consolidated Balance (AED)</div>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', color: '#1e293b', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#64748b' }}>{selectedEnriched?.currency || 'AED'}</span>
+                                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#64748b' }}>AED</span>
                                 <span style={{ fontSize: '2.4rem', fontWeight: 800 }}>
-                                    {selectedEnriched?.balanceNative?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    {selectedEnriched?.balance_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </div>
@@ -381,10 +381,10 @@ export default function ClientsPage() {
                                 </div>
                             </div>
                             <div>
-                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Consolidated</div>
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Native Balance</div>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }} className="font-bold text-[#1e293b]">
-                                    <span style={{ fontSize: '0.75rem' }} className="text-violet-500 font-semibold">AED</span>
-                                    <span style={{ fontSize: '0.75rem' }}>{selectedEnriched?.balance_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span style={{ fontSize: '0.75rem' }} className="text-violet-500 font-semibold">{selectedEnriched?.currency || 'AED'}</span>
+                                    <span style={{ fontSize: '0.75rem' }}>{selectedEnriched?.balanceNative.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </div>

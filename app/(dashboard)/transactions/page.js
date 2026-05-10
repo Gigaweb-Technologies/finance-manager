@@ -254,7 +254,7 @@ export default function TransactionsPage() {
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700 }} className={tx.type === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
                     <span style={{ color: tx.type === 'IN' ? '#10b981' : '#f43f5e' }}>
-                      {tx.type === 'IN' ? '+' : '-'} {tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'} {tx.type === 'IN' ? (clients.find(c => c.id === tx.client_id)?.currency || 'AED') : 'AED'}
+                      {tx.type === "IN" ? "+" : "-"} {tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"} AED
                     </span>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', textAlign: 'center' }}>

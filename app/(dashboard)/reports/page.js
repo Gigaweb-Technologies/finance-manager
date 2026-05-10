@@ -174,9 +174,9 @@ export default function ReportsPage() {
                 return true;
             });
 
-            const dayTotal = inflows.reduce((sum, tx) => sum + (tx.amount_naira || 0), 0);
+            const dayTotal = inflows.reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
             runningMainTotal += dayTotal;
-
+            
             days.push({
                 dateKey,
                 date,
@@ -185,13 +185,13 @@ export default function ReportsPage() {
                 mainTotal: runningMainTotal
             });
         }
-
+        
         return { days, payoutRecipients };
     }, [allTransactions, selectedMonthKey, stmtClient]);
 
     const statementDays = statementData.days;
     const payoutRecipients = statementData.payoutRecipients;
-    const grandTotalNaira = useMemo(() => statementDays.reduce((s, d) => s + d.dayTotal, 0), [statementDays]);
+    const grandTotalAed = useMemo(() => statementDays.reduce((s, d) => s + d.dayTotal, 0), [statementDays]);
     const grandTxCount = useMemo(() => statementDays.reduce((s, d) => s + d.inflows.length, 0), [statementDays]);
 
     const toggleDay = (key) => setCollapsedDays(p => ({ ...p, [key]: !p[key] }));
@@ -698,14 +698,14 @@ export default function ReportsPage() {
                                                     </div>
                                                 </div>
 
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "2.5rem" }}>
                                                     <div style={{ textAlign: 'right' }}>
                                                         <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Day Total</div>
-                                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: hasInflows ? '#1e293b' : '#cbd5e1' }}>₦ {fmt(day.dayTotal)}</div>
+                                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: hasInflows ? '#1e293b' : '#cbd5e1' }}>{fmt(day.dayTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
                                                     </div>
                                                     <div style={{ textAlign: 'right' }}>
                                                         <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Main Total</div>
-                                                        <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#7c3aed', background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>₦ {fmt(day.mainTotal)}</div>
+                                                        <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#7c3aed', background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(day.mainTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
                                                     </div>
                                                     {hasInflows && (
                                                         <div style={{ color: '#94a3b8' }}>
@@ -730,8 +730,8 @@ export default function ReportsPage() {
                                                                     </div>
                                                                 </div>
                                                                 <div style={{ textAlign: 'right' }}>
-                                                                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#059669' }}>+₦ {fmt(tx.amount_naira)}</div>
-                                                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{tx.amount_aed} AED</div>
+                                                                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#059669' }}>+{fmt(tx.amount_aed, 2)} AED</div>
+                                                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>₦ {fmt(tx.amount_naira)}</div>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -779,7 +779,7 @@ export default function ReportsPage() {
                                 <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Total Monthly Inflow</span>
-                                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>₦ {fmt(grandTotalNaira)}</span>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>{fmt(grandTotalAed, 2)} AED</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Total Payouts</span>

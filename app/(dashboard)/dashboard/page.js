@@ -220,12 +220,12 @@ export default function DashboardPage() {
                                         </td>
                                         <td>
                                             <div className={`amount-aed ${tx.type === 'IN' ? 'amount-positive' : 'amount-negative'}`}>
-                                                {tx.type === 'IN' ? '+ ' : '- '}{tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })} {tx.type === 'IN' ? (client?.currency || 'AED') : 'AED'}
+                                                {tx.type === 'IN' ? '+ ' : '- '}{tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED
                                             </div>
                                         </td>
                                         <td>
                                             <div className="running-balance">
-                                                {client?.currency || 'AED'} {client?.balance_aed?.toLocaleString() || '0'}
+                                                AED {client?.balance_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
                                             </div>
                                         </td>
                                     </tr>
