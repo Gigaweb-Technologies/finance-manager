@@ -160,16 +160,11 @@ export default function ReportsPage() {
         const startingOutflow = prevTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
         const balanceForward = startingInflow - startingOutflow;
 
-        // 1. Calculate Payout Recipients (Monthly Summary) - Right Side
-        const recipientsMap = {};
-        monthTx.filter(tx => tx.type === 'OUT').forEach(tx => {
-            const name = tx.recipient || tx.narration || 'Unknown Recipient';
-            if (!recipientsMap[name]) recipientsMap[name] = 0;
-            recipientsMap[name] += (tx.amount_aed || 0);
-        });
-        const payoutRecipients = Object.entries(recipientsMap)
-            .map(([name, total]) => ({ name, total }))
-            .sort((a, b) => b.total - a.total);
+        // 1. Payout Transactions for the month - Right Side
+        const payoutTransactions = monthTx
+            .filter(tx => tx.type === 'OUT')
+            .filter(tx => stmtClient === 'All Clients' || String(tx.client_id) === String(stmtClient))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
 
         // 2. Generate All Days and calculate daily inflow totals - Left Side
         const days = [];
@@ -195,6 +190,7 @@ export default function ReportsPage() {
             });
 
             const dayInflowTotal = inflows.reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+            const dayInflowTotalNaira = inflows.reduce((sum, tx) => sum + (tx.amount_naira || 0), 0);
             const dayPayoutTotal = payouts.reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
             
             runningNetBalance += (dayInflowTotal - dayPayoutTotal);
@@ -205,16 +201,17 @@ export default function ReportsPage() {
                 inflows,
                 payouts,
                 dayTotal: dayInflowTotal,
+                dayTotalNaira: dayInflowTotalNaira,
                 dayPayoutTotal,
                 mainTotal: runningNetBalance
             });
         }
         
-        return { days, payoutRecipients, balanceForward };
+        return { days, payoutTransactions, balanceForward };
     }, [allTransactions, selectedMonthKey, stmtClient]);
 
     const statementDays = statementData.days;
-    const payoutRecipients = statementData.payoutRecipients;
+    const payoutTransactions = statementData.payoutTransactions;
     const grandTotalAed = useMemo(() => statementDays.reduce((s, d) => s + d.dayTotal, 0), [statementDays]);
     const grandTxCount = useMemo(() => statementDays.reduce((s, d) => s + d.inflows.length, 0), [statementDays]);
 
@@ -317,29 +314,48 @@ export default function ReportsPage() {
     const handleExportStatement = () => {
         if (statementDays.length === 0) return;
         const rows = ['Date,Client,Type,Recipient/Narration,Naira Amount,AED Amount,Unique ID'];
+
+        if (statementData.balanceForward !== 0) {
+            rows.push(['Balance Brought Forward', '', '', '', '', statementData.balanceForward.toFixed(2), ''].join(','));
+            rows.push('');
+        }
+
         statementDays.forEach(day => {
-            day.rows.forEach(tx => {
+            const allDayTx = [...day.inflows, ...day.payouts].sort((a, b) => new Date(a.date) - new Date(b.date));
+            allDayTx.forEach(tx => {
                 const d = new Date(tx.date);
                 rows.push([
                     d.toLocaleDateString(),
                     `"${(tx.client_name || '').replace(/"/g, '""')}"`,
                     tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
                     `"${(tx.recipient || tx.narration || '').replace(/"/g, '""')}"`,
-                    tx.type === 'IN' ? (tx.amount_naira || 0) : '',
+                    tx.amount_naira || '',
                     tx.amount_aed || '',
                     tx.transaction_unique_id || tx.id
                 ].join(','));
             });
-            rows.push([
-                `DAY TOTAL (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`,
-                '', '', '',
-                day.totalNaira,
-                day.totalAed.toFixed(2),
-                ''
-            ].join(','));
-            rows.push('');
+            if (allDayTx.length > 0) {
+                rows.push([
+                    `DAY TOTAL NGN (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`,
+                    '', '', '',
+                    day.dayTotalNaira,
+                    '',
+                    ''
+                ].join(','));
+                rows.push([
+                    `DAY TOTAL AED (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`,
+                    '', '', '',
+                    '',
+                    day.dayTotal.toFixed(2),
+                    ''
+                ].join(','));
+                rows.push([
+                    'RUNNING NET BALANCE', '', '', '', '', day.mainTotal.toFixed(2), ''
+                ].join(','));
+                rows.push('');
+            }
         });
-        rows.push(['MONTHLY GRAND TOTAL', '', '', '', grandTotalNaira, grandTotalAed.toFixed(2), ''].join(','));
+        rows.push(['MONTHLY FINAL NET BALANCE', '', '', '', '', (statementDays[statementDays.length - 1]?.mainTotal || 0).toFixed(2), ''].join(','));
         const csv = rows.join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -700,9 +716,15 @@ export default function ReportsPage() {
                                                     <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>Net balance from previous months</div>
                                                 </div>
                                             </div>
-                                            <div style={{ textAlign: "right" }}>
-                                                <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.15rem" }}>Starting Net Balance</div>
-                                                <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "#475569" }}>{fmt(statementData.balanceForward, 2)} <span style={{ fontSize: "0.7rem" }}>AED</span></div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+                                                <div style={{ textAlign: "right" }}>
+                                                    <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.15rem" }}>Starting Balance</div>
+                                                    <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "#475569" }}>{fmt(statementData.balanceForward, 2)} <span style={{ fontSize: "0.7rem" }}>AED</span></div>
+                                                </div>
+                                                <div style={{ textAlign: "right" }}>
+                                                    <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.15rem" }}>Final Net Balance</div>
+                                                    <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "#7c3aed", background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(statementDays[statementDays.length - 1]?.mainTotal || 0, 2)} <span style={{ fontSize: "0.7rem" }}>AED</span></div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -751,12 +773,12 @@ export default function ReportsPage() {
 
                                                 <div style={{ display: "flex", alignItems: "center", gap: "2.5rem" }}>
                                                     <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Day Total</div>
-                                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: hasInflows ? '#1e293b' : '#cbd5e1' }}>{fmt(day.dayTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
+                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Total NGN</div>
+                                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#ef4444', background: '#fef2f2', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(day.dayTotalNaira)} <span style={{ fontSize: '0.7rem' }}>₦</span></div>
                                                     </div>
                                                     <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Net Balance</div>
-                                                        <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#7c3aed', background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(day.mainTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
+                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#eab308', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Total AED</div>
+                                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#854d0e', background: '#fefce8', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(day.dayTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
                                                     </div>
                                                     {hasInflows && (
                                                         <div style={{ color: '#94a3b8' }}>
@@ -796,46 +818,47 @@ export default function ReportsPage() {
                             )}
                         </div>
 
-                        {/* RIGHT COLUMN: MONTHLY PAYOUT RECIPIENTS */}
-                        <div style={{ position: 'sticky', top: 'calc(var(--header-height) + 1.5rem)' }}>
-                            <div className="premium-card" style={{ padding: '1.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff1f2', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {/* RIGHT COLUMN: MONTHLY PAYOUTS (CHRONOLOGICAL) */}
+                        <div style={{ position: "sticky", top: "calc(var(--header-height) + 1.5rem)" }}>
+                            <div className="premium-card" style={{ padding: "1.5rem" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fff1f2", color: "#e11d48", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                         <ArrowUpRight size={20} />
                                     </div>
-                                    <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1e293b' }}>Payout Recipients</h3>
+                                    <h3 style={{ fontWeight: 800, fontSize: "1.1rem", color: "#1e293b" }}>Monthly Payouts</h3>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    {payoutRecipients.length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', borderRadius: 12, border: '1px dashed #e2e8f0' }}>
-                                            <p style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>No payouts this month</p>
-                                        </div>
-                                    ) : (
-                                        payoutRecipients.map((recipient, idx) => (
-                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#ffffff', borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                                                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f8fafc', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800, border: '1px solid #f1f5f9' }}>
-                                                        {recipient.name.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#334155', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{recipient.name}</span>
-                                                </div>
-                                                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#e11d48' }}>
-                                                    {fmt(recipient.total, 2)} <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>AED</span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-
-                                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Total Monthly Inflow</span>
-                                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>{fmt(grandTotalAed, 2)} AED</span>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                                    {/* Previous Balance Row */}
+                                    <div style={{ display: "flex", justifyContent: "space-between", padding: "0.75rem 1rem", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                                        <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b" }}>Previous Balance</span>
+                                        <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569" }}>{fmt(statementData.balanceForward, 2)} AED</span>
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Total Payouts</span>
-                                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#e11d48' }}>{fmt(payoutRecipients.reduce((s, r) => s + r.total, 0), 2)} AED</span>
+
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem", maxHeight: "450px", overflowY: "auto", paddingRight: "0.25rem", paddingBottom: "0.5rem" }}>
+                                        {payoutTransactions.length === 0 ? (
+                                            <div style={{ textAlign: "center", padding: "2rem 1rem", background: "#f8fafc", borderRadius: 12, border: "1px dashed #e2e8f0" }}>
+                                                <p style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 600 }}>No payouts this month</p>
+                                            </div>
+                                        ) : (
+                                            payoutTransactions.map((tx, idx) => (
+                                                <div key={tx.id || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.85rem 1rem", background: "#ffffff", borderRadius: 12, border: "1px solid #f1f5f9", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+                                                    <div>
+                                                        <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#334155", maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.recipient || tx.narration || "Payout"}</div>
+                                                        <div style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: 600 }}>{new Date(tx.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
+                                                    </div>
+                                                    <div style={{ fontWeight: 800, fontSize: "0.85rem", color: "#e11d48" }}>
+                                                        -{fmt(tx.amount_aed, 2)} <span style={{ fontSize: "0.65rem" }}>AED</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {/* Final Balance Row */}
+                                    <div style={{ marginTop: "1rem", display: "flex", justifyContent: "space-between", padding: "1rem", background: "#f5f3ff", borderRadius: 12, border: "1px solid #ddd6fe" }}>
+                                        <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#7c3aed" }}>Remaining Balance</span>
+                                        <span style={{ fontSize: "1rem", fontWeight: 900, color: "#7c3aed" }}>{fmt(statementDays[statementDays.length - 1]?.mainTotal || statementData.balanceForward, 2)} AED</span>
                                     </div>
                                 </div>
                             </div>
