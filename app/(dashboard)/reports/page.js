@@ -798,7 +798,7 @@ export default function ReportsPage() {
 
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                                     {/* Previous Balance Row */}
-                                    <div style={{ display: "flex", justifyContent: "space-between", padding: "0.75rem 1rem", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
                                         <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b" }}>Previous Balance</span>
                                         <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569" }}>{fmt(statementData.balanceForward, 2)} AED</span>
                                     </div>
@@ -824,9 +824,9 @@ export default function ReportsPage() {
                                     </div>
 
                                     {/* Final Balance Row */}
-                                    <div style={{ marginTop: "1rem", display: "flex", justifyContent: "space-between", padding: "1rem", background: "#f5f3ff", borderRadius: 12, border: "1px solid #ddd6fe" }}>
-                                        <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#7c3aed" }}>Remaining Balance</span>
-                                        <span style={{ fontSize: "1rem", fontWeight: 900, color: "#7c3aed" }}>{fmt(statementDays[statementDays.length - 1]?.mainTotal || statementData.balanceForward, 2)} AED</span>
+                                    <div style={{ marginTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", background: "#f5f3ff", borderRadius: 12, border: "1px solid #ddd6fe" }}>
+                                        <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#7c3aed", flex: 1 }}>Remaining Balance</span>
+                                        <span style={{ fontSize: "1rem", fontWeight: 900, color: "#7c3aed", textAlign: 'right' }}>{fmt(statementDays[statementDays.length - 1]?.mainTotal || statementData.balanceForward, 2)} AED</span>
                                     </div>
                                 </div>
                             </div>
