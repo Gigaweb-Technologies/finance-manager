@@ -165,9 +165,6 @@ export default function DashboardPage() {
                         <button className="btn-ghost-custom">
                             <Filter size={16} /> Filter
                         </button>
-                        <button className="btn-ghost-custom">
-                            <Download size={16} /> Export
-                        </button>
                     </div>
                 </div>
                 <div className="overflow-x-auto">

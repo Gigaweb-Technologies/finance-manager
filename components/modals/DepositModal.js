@@ -40,11 +40,9 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
     const handleClientChange = (clientId) => {
         const client = clients.find(c => c.id === parseInt(clientId));
         const newCurrency = client?.currency || 'AED';
-        // Set default rate based on currency
+        // Set default rate based on currency (AED to AED is 1, NGN to AED is usually very small)
         let defaultRate = '1';
-        if (newCurrency === 'USD') defaultRate = '3.67';
-        else if (newCurrency === 'GBP') defaultRate = '4.70';
-        else if (newCurrency === 'EUR') defaultRate = '3.90';
+        if (newCurrency === 'NGN') defaultRate = '0.0025'; // Mock rate, users will override
         
         setForm({
             ...form,

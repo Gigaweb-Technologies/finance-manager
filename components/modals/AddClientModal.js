@@ -188,11 +188,7 @@ const AddClientModal = ({ isOpen, onClose, onClientAdded, client = null }) => {
                                         style={{ paddingLeft: '12px' }}
                                     >
                                         <option value="AED">AED - Emirati Dirham</option>
-                                        <option value="USD">USD - US Dollar</option>
                                         <option value="NGN">NGN - Nigerian Naira</option>
-                                        <option value="GBP">GBP - British Pound</option>
-                                        <option value="EUR">EUR - Euro</option>
-
                                     </select>
                                 </div>
                             </div>

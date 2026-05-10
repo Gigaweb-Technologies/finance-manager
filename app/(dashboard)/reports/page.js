@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useData } from '@/lib/DataContext';
 import {
     Download,
@@ -368,6 +370,96 @@ export default function ReportsPage() {
         document.body.removeChild(link);
     };
 
+    const handleExportPDF = () => {
+        if (statementDays.length === 0) return;
+
+        const doc = new jsPDF();
+        const clientName = stmtClient === 'All Clients' ? 'All Clients' : (clients.find(c => String(c.id) === String(stmtClient))?.name || 'Client');
+        const monthYear = selectedMonthKey;
+
+        // Title
+        doc.setFontSize(20);
+        doc.setTextColor(124, 58, 237); // Primary color
+        doc.text('Monthly Financial Statement', 14, 22);
+
+        // Subheader
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Client: ${clientName}`, 14, 32);
+        doc.text(`Month: ${monthYear}`, 14, 37);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+
+        // Summary Boxes
+        doc.setDrawColor(226, 232, 240);
+        doc.setFillColor(248, 250, 252);
+        doc.rect(14, 50, 182, 20, 'FD');
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text('BALANCE BROUGHT FORWARD', 20, 57);
+        doc.text('MONTHLY FINAL NET BALANCE', 130, 57);
+
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`${statementData.balanceForward.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 20, 64);
+        doc.setTextColor(124, 58, 237);
+        doc.text(`${(statementDays[statementDays.length - 1]?.mainTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 130, 64);
+
+        // Table
+        const tableRows = [];
+        
+        statementDays.forEach(day => {
+            const allDayTx = [...day.inflows, ...day.payouts].sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            allDayTx.forEach(tx => {
+                tableRows.push([
+                    new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+                    tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
+                    tx.recipient || tx.narration || '-',
+                    tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
+                    tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })
+                ]);
+            });
+
+            if (allDayTx.length > 0) {
+                // Day Total Rows
+                tableRows.push([
+                    { content: `Daily Totals (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`, colSpan: 3, styles: { fontStyle: 'bold', fillColor: [245, 243, 255] } },
+                    { content: day.dayTotalNaira.toLocaleString(), styles: { fontStyle: 'bold', fillColor: [245, 243, 255], halign: 'right' } },
+                    { content: day.dayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { fontStyle: 'bold', fillColor: [245, 243, 255], halign: 'right' } }
+                ]);
+                tableRows.push([
+                    { content: 'RUNNING NET BALANCE', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', textColor: [124, 58, 237] } },
+                    { content: day.mainTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { fontStyle: 'bold', halign: 'right', textColor: [124, 58, 237] } }
+                ]);
+            }
+        });
+
+        autoTable(doc, {
+            startY: 75,
+            head: [['Date', 'Type', 'Description', 'NGN Amount', 'AED Amount']],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontSize: 9 },
+            bodyStyles: { fontSize: 8 },
+            columnStyles: {
+                0: { cellWidth: 20 },
+                1: { cellWidth: 20 },
+                2: { cellWidth: 'auto' },
+                3: { cellWidth: 30, halign: 'right' },
+                4: { cellWidth: 30, halign: 'right' }
+            },
+            margin: { top: 20 },
+            didDrawPage: (data) => {
+                doc.setFontSize(7);
+                doc.setTextColor(150);
+                doc.text(`Page ${data.pageNumber}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+            }
+        });
+
+        doc.save(`Statement_${clientName.replace(/\s+/g, '_')}_${monthYear}.pdf`);
+    };
+
     if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>Loading Reports...</div>;
 
     return (
@@ -675,15 +767,24 @@ export default function ReportsPage() {
                                 <ChevronDown className="report-select-icon" />
                             </div>
                         </div>
-
-                        <button
-                            onClick={handleExportStatement}
-                            disabled={statementDays.length === 0}
-                            className="btn-premium btn-primary-premium shadow-lg shadow-violet-200 py-2"
-                            style={{ opacity: statementDays.length === 0 ? 0.5 : 1 }}
-                        >
-                            <Download size={18} /> Export Statement
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button
+                                onClick={handleExportPDF}
+                                disabled={statementDays.length === 0}
+                                className="action-button-premium"
+                                style={{ background: "#7c3aed", color: "white", padding: "0.6rem 1.25rem", borderRadius: 10, display: "flex", alignItems: "center", gap: "0.5rem", border: "none", cursor: "pointer", opacity: statementDays.length === 0 ? 0.5 : 1 }}
+                            >
+                                <Download size={18} /> Export PDF
+                            </button>
+                            <button
+                                onClick={handleExportStatement}
+                                disabled={statementDays.length === 0}
+                                className="action-button-premium"
+                                style={{ background: "white", color: "#7c3aed", border: "1px solid #7c3aed", padding: "0.6rem 1.25rem", borderRadius: 10, display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", opacity: statementDays.length === 0 ? 0.5 : 1 }}
+                            >
+                                <TableProperties size={18} /> Export CSV
+                            </button>
+                        </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>

@@ -40,20 +40,17 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
     const user = authenticateToken(request);
-    if (!user) return NextResponse.json({ error: 'Access denied' }, { status: 401 });
+    if (!user) return NextResponse.json({ error: "Access denied" }, { status: 401 });
 
     const { id } = await params;
 
     try {
-        // Check for existing transactions
-        const txCount = await db.getAsync('SELECT COUNT(*) as count FROM transactions WHERE client_id = ?', [id]);
-        if (txCount.count > 0) {
-            return NextResponse.json({ error: 'Cannot delete client with existing transactions' }, { status: 400 });
-        }
+        await db.runAsync("DELETE FROM transactions WHERE client_id = ?", [id]);
+        await db.runAsync("DELETE FROM recipients WHERE client_id = ?", [id]);
 
-        const result = await db.runAsync('DELETE FROM clients WHERE id = ?', [id]);
-        if (result.changes === 0) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-        return NextResponse.json({ message: 'Client deleted successfully' });
+        const result = await db.runAsync("DELETE FROM clients WHERE id = ?", [id]);
+        if (result.changes === 0) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+        return NextResponse.json({ message: "Client and all history deleted successfully" });
     } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }

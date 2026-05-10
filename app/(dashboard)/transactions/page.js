@@ -2,6 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { useData } from '@/lib/DataContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import StatementUploadModal from '@/components/modals/StatementUploadModal';
 import {
     ArrowRightLeft,
@@ -28,7 +30,8 @@ import EditTransactionModal from '@/components/modals/EditTransactionModal';
 import axios from 'axios';
 
 export default function TransactionsPage() {
-    const { clients, allTransactions, loading, searchQuery, refreshData } = useData();
+    const { clients, allTransactions, loading, searchQuery, setSearchQuery, refreshData } = useData();
+    const [typeFilter, setTypeFilter] = useState('All Types');
     const [activeModal, setActiveModal] = useState(null);
     const [selectedTx, setSelectedTx] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,13 +64,103 @@ export default function TransactionsPage() {
         }
     };
 
+    const handleExportCSV = () => {
+        if (filteredTransactions.length === 0) return;
+        const headers = ['Transaction ID', 'Date', 'Client', 'Type', 'NGN Amount', 'AED Amount', 'Recipient/Narration', 'Status'];
+        const rows = filteredTransactions.map(tx => {
+            const d = new Date(tx.date);
+            const displayId = tx.transaction_unique_id || `TRX-${String(tx.id).padStart(5, '0')}`;
+            return [
+                displayId,
+                d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                `"${(tx.client_name || '').replace(/"/g, '""')}"`,
+                tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
+                tx.amount_naira || 0,
+                tx.amount_aed || 0,
+                `"${(tx.recipient || tx.narration || '').replace(/"/g, '""')}"`,
+                tx.status || 'COMPLETED'
+            ].join(',');
+        });
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `transactions_history_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportPDF = () => {
+        if (filteredTransactions.length === 0) return;
+
+        const doc = new jsPDF();
+        
+        // Title
+        doc.setFontSize(20);
+        doc.setTextColor(124, 58, 237);
+        doc.text('Transaction History Report', 14, 22);
+
+        // Subheader
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 32);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 37);
+
+        // Table
+        const tableRows = filteredTransactions.map(tx => [
+            tx.transaction_unique_id?.substring(0, 8).toUpperCase() || `TRX-${String(tx.id).padStart(5, '0')}`,
+            new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            tx.client_name || 'N/A',
+            tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
+            tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
+            `${tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`,
+            tx.status || 'COMPLETED'
+        ]);
+
+        autoTable(doc, {
+            startY: 45,
+            head: [['ID', 'Date', 'Client', 'Type', 'NGN Amount', 'AED Amount', 'Status']],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontSize: 9 },
+            bodyStyles: { fontSize: 8 },
+            columnStyles: {
+                0: { cellWidth: 22 }, // ID
+                1: { cellWidth: 25 }, // Date
+                2: { cellWidth: "auto" }, // Client
+                3: { cellWidth: 18 }, // Type
+                4: { cellWidth: 28, halign: "right" }, // NGN
+                5: { cellWidth: 32, halign: "right" }, // AED
+                6: { cellWidth: 25, halign: "center" } // Status
+            },
+            margin: { top: 20 },
+            didDrawPage: (data) => {
+                doc.setFontSize(7);
+                doc.setTextColor(150);
+                doc.text(`Page ${data.pageNumber}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+            }
+        });
+
+        doc.save(`Transaction_History_${new Date().toISOString().slice(0, 10)}.pdf`);
+    };
+
     const filteredTransactions = useMemo(() => {
-        return allTransactions.filter(t =>
-            (t.client_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-            t.description?.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-            t.recipient?.toLowerCase().includes((searchQuery || '').toLowerCase())
-        );
-    }, [allTransactions, searchQuery]);
+        return allTransactions.filter(t => {
+            const matchesSearch = (t.client_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+                (t.description || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+                (t.recipient || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+                (t.transaction_unique_id || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+            
+            const matchesType = typeFilter === 'All Types' || 
+                (typeFilter === 'Inflow' && t.type === 'IN') || 
+                (typeFilter === 'Payout' && t.type === 'OUT');
+            
+            return matchesSearch && matchesType;
+        });
+    }, [allTransactions, searchQuery, typeFilter]);
 
     const stats = useMemo(() => {
         const totalInflowsCount = filteredTransactions.filter(t => t.type === 'IN').length;
@@ -112,7 +205,20 @@ export default function TransactionsPage() {
             <button className="btn-premium" style={{ border: '1px solid var(--border-color)', background: 'white', color: 'var(--text-main)', borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <SlidersHorizontal size={18} /> Advanced Filters
             </button>
-            <button className="btn-premium btn-primary-premium" style={{ borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button 
+                onClick={handleExportPDF}
+                disabled={filteredTransactions.length === 0}
+                className="btn-premium" 
+                style={{ border: '1px solid #7c3aed', background: 'white', color: '#7c3aed', borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: filteredTransactions.length === 0 ? 0.5 : 1 }}
+            >
+              <Download size={18} /> Export PDF
+            </button>
+            <button 
+                onClick={handleExportCSV}
+                disabled={filteredTransactions.length === 0}
+                className="btn-premium btn-primary-premium" 
+                style={{ borderRadius: '8px', padding: '0.7rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: filteredTransactions.length === 0 ? 0.5 : 1 }}
+            >
               <Download size={18} /> Export CSV
             </button>
           </div>
@@ -176,7 +282,7 @@ export default function TransactionsPage() {
                   type="text"
                   placeholder="Search by ID, client..."
                   value={searchQuery || ''}
-                  onChange={() => {}}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
                     padding: '0.5rem 0.75rem 0.5rem 2.25rem',
                     borderRadius: '8px',
@@ -191,22 +297,24 @@ export default function TransactionsPage() {
               </div>
               <div style={{ position: 'relative' }}>
                 <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
                   style={{
-                    padding: '0.5rem 2rem 0.5rem 1rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: '#f8fafc',
-                    fontSize: '0.85rem',
-                    appearance: 'none',
-                    cursor: 'pointer',
-                    minWidth: '120px',
-                    color: 'var(--text-main)',
-                    outline: 'none'
+                    padding: "0.5rem 2rem 0.5rem 1rem",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                    background: "#f8fafc",
+                    fontSize: "0.85rem",
+                    appearance: "none",
+                    cursor: "pointer",
+                    minWidth: "120px",
+                    color: "var(--text-main)",
+                    outline: "none"
                   }}
                 >
-                  <option>All Types</option>
-                  <option>Inflow</option>
-                  <option>Payout</option>
+                  <option value="All Types">All Types</option>
+                  <option value="Inflow">Inflow</option>
+                  <option value="Payout">Payout</option>
                 </select>
                 <ChevronDown size={14} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
               </div>
@@ -217,7 +325,7 @@ export default function TransactionsPage() {
             <thead style={{ background: '#f8fafc' }}>
               <tr>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>TRANSACTION ID</th>
-                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>DATE & TIME</th>
+                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>DATE</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>CLIENT</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>TYPE</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>SOURCE AMOUNT</th>
@@ -230,11 +338,10 @@ export default function TransactionsPage() {
               {filteredTransactions.map(tx => (
                 <tr key={tx.id} className="client-table-row" style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '1.25rem 1.5rem' }}>
-                    <span className="tx-id-link" style={{ color: '#8b5cf6', fontWeight: 700, fontSize: '0.85rem' }}>#{tx.transaction_unique_id?.substring(0, 8).toUpperCase() || ('TX-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'))}</span>
+                    <span className="tx-id-link" style={{ color: '#8b5cf6', fontWeight: 700, fontSize: '0.85rem' }}>#{tx.transaction_unique_id?.substring(0, 8).toUpperCase() || `TRX-${String(tx.id).padStart(5, '0')}`}</span>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{new Date(tx.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
