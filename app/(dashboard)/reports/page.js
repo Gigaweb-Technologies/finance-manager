@@ -147,6 +147,19 @@ export default function ReportsPage() {
             return d.getFullYear() === yr && d.getMonth() + 1 === mo;
         });
 
+        const startDate = new Date(yr, mo - 1, 1);
+
+        // 0. Calculate Balance Brought Forward
+        const prevTx = allTransactions.filter(tx => {
+            const d = new Date(tx.date);
+            if (d >= startDate) return false;
+            if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
+            return true;
+        });
+        const startingInflow = prevTx.filter(tx => tx.type === 'IN').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+        const startingOutflow = prevTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+        const balanceForward = startingInflow - startingOutflow;
+
         // 1. Calculate Payout Recipients (Monthly Summary) - Right Side
         const recipientsMap = {};
         monthTx.filter(tx => tx.type === 'OUT').forEach(tx => {
@@ -160,7 +173,7 @@ export default function ReportsPage() {
 
         // 2. Generate All Days and calculate daily inflow totals - Left Side
         const days = [];
-        let runningMainTotal = 0;
+        let runningNetBalance = balanceForward;
 
         for (let d = 1; d <= monthEnd.getDate(); d++) {
             const date = new Date(yr, mo - 1, d);
@@ -173,20 +186,31 @@ export default function ReportsPage() {
                 if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
                 return true;
             });
+            
+            const payouts = monthTx.filter(tx => {
+                const txD = new Date(tx.date);
+                if (txD.getDate() !== d || tx.type !== 'OUT') return false;
+                if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
+                return true;
+            });
 
-            const dayTotal = inflows.reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
-            runningMainTotal += dayTotal;
+            const dayInflowTotal = inflows.reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+            const dayPayoutTotal = payouts.reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+            
+            runningNetBalance += (dayInflowTotal - dayPayoutTotal);
             
             days.push({
                 dateKey,
                 date,
                 inflows,
-                dayTotal,
-                mainTotal: runningMainTotal
+                payouts,
+                dayTotal: dayInflowTotal,
+                dayPayoutTotal,
+                mainTotal: runningNetBalance
             });
         }
         
-        return { days, payoutRecipients };
+        return { days, payoutRecipients, balanceForward };
     }, [allTransactions, selectedMonthKey, stmtClient]);
 
     const statementDays = statementData.days;
@@ -655,7 +679,34 @@ export default function ReportsPage() {
                                     <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>No data for selected period</p>
                                 </div>
                             ) : (
-                                statementDays.map(day => {
+                                <>
+                                    {statementData.balanceForward !== 0 && (
+                                        <div className="premium-card" style={{ 
+                                            padding: "1rem 1.5rem", 
+                                            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                                            border: "1px solid #e2e8f0",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            borderRadius: 16,
+                                            marginBottom: "0.5rem"
+                                        }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                                                <div style={{ width: 42, height: 42, borderRadius: 12, background: "white", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, border: "1px solid #e2e8f0" }}>
+                                                    <ArrowUpRight size={20} />
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#475569" }}>Balance Brought Forward</div>
+                                                    <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>Net balance from previous months</div>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: "right" }}>
+                                                <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.15rem" }}>Starting Net Balance</div>
+                                                <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "#475569" }}>{fmt(statementData.balanceForward, 2)} <span style={{ fontSize: "0.7rem" }}>AED</span></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {statementDays.map(day => {
                                     const isCollapsed = collapsedDays[day.dateKey];
                                     const dayLabel = new Date(day.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
                                     const hasInflows = day.inflows.length > 0;
@@ -704,7 +755,7 @@ export default function ReportsPage() {
                                                         <div style={{ fontWeight: 800, fontSize: '1.1rem', color: hasInflows ? '#1e293b' : '#cbd5e1' }}>{fmt(day.dayTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
                                                     </div>
                                                     <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Main Total</div>
+                                                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.15rem' }}>Net Balance</div>
                                                         <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#7c3aed', background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(day.mainTotal, 2)} <span style={{ fontSize: '0.7rem' }}>AED</span></div>
                                                     </div>
                                                     {hasInflows && (
@@ -741,6 +792,7 @@ export default function ReportsPage() {
                                         </div>
                                     );
                                 })
+                                </>
                             )}
                         </div>
 
