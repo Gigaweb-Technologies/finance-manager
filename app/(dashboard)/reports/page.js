@@ -696,38 +696,6 @@ export default function ReportsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    {statementData.balanceForward !== 0 && (
-                                        <div className="premium-card" style={{ 
-                                            padding: "1rem 1.5rem", 
-                                            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-                                            border: "1px solid #e2e8f0",
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            borderRadius: 16,
-                                            marginBottom: "0.5rem"
-                                        }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                                                <div style={{ width: 42, height: 42, borderRadius: 12, background: "white", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, border: "1px solid #e2e8f0" }}>
-                                                    <ArrowUpRight size={20} />
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#475569" }}>Balance Brought Forward</div>
-                                                    <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>Net balance from previous months</div>
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
-                                                <div style={{ textAlign: "right" }}>
-                                                    <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.15rem" }}>Starting Balance</div>
-                                                    <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "#475569" }}>{fmt(statementData.balanceForward, 2)} <span style={{ fontSize: "0.7rem" }}>AED</span></div>
-                                                </div>
-                                                <div style={{ textAlign: "right" }}>
-                                                    <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.15rem" }}>Final Net Balance</div>
-                                                    <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "#7c3aed", background: '#f5f3ff', padding: '0.1rem 0.6rem', borderRadius: 8 }}>{fmt(statementDays[statementDays.length - 1]?.mainTotal || 0, 2)} <span style={{ fontSize: "0.7rem" }}>AED</span></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
                                     {statementDays.map(day => {
                                     const isCollapsed = collapsedDays[day.dateKey];
                                     const dayLabel = new Date(day.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
