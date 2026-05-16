@@ -63,40 +63,89 @@ export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'statement'
 
     // ── Analytics filters ─────────────────────────────────────────────────
-    const [timeFilter, setTimeFilter] = useState('Last 30 Days');
+    const [timeFilter, setTimeFilter] = useState('Last Month');
     const [clientFilter, setClientFilter] = useState('All Clients');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
     // ── Statement filters ─────────────────────────────────────────────────
-    const monthOptions = useMemo(() => getMonthOptions(allTransactions || []), [allTransactions]);
-    const [stmtMonth, setStmtMonth] = useState('');
+    const [stmtTimeFilter, setStmtTimeFilter] = useState('This Month');
+    const [stmtMonth, setStmtMonth] = useState(''); 
+    const [stmtCustomStart, setStmtCustomStart] = useState('');
+    const [stmtCustomEnd, setStmtCustomEnd] = useState('');
     const [stmtClient, setStmtClient] = useState('All Clients');
     const [collapsedDays, setCollapsedDays] = useState({});
 
-    const selectedMonthKey = stmtMonth || (() => {
+    const stmtDateRange = useMemo(() => {
         const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    })();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        let start, end = new Date(today);
+        end.setHours(23, 59, 59, 999);
 
-    const selectedMonthLabel = useMemo(() => {
-        const [yr, mo] = selectedMonthKey.split('-').map(Number);
-        if (!yr || !mo) return '—';
-        return new Date(yr, mo - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-    }, [selectedMonthKey]);
+        switch (stmtTimeFilter) {
+            case 'This Month':
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                break;
+            case 'Last Month':
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                break;
+            case 'Last 3 Months':
+                start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                break;
+            case 'Year to Date':
+                start = new Date(now.getFullYear(), 0, 1);
+                break;
+            case 'Specific Month':
+                const targetKey = stmtMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const [yr, mo] = targetKey.split('-').map(Number);
+                start = new Date(yr, mo - 1, 1);
+                end = new Date(yr, mo, 0, 23, 59, 59, 999);
+                break;
+            case 'Custom Range':
+                start = stmtCustomStart ? new Date(stmtCustomStart) : new Date(today);
+                if (stmtCustomEnd) {
+                    end = new Date(stmtCustomEnd);
+                    end.setHours(23, 59, 59, 999);
+                }
+                break;
+            default:
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+        }
+        return { start, end };
+    }, [stmtTimeFilter, stmtMonth, stmtCustomStart, stmtCustomEnd]);
+
+    const selectedRangeLabel = useMemo(() => {
+        if (stmtTimeFilter === 'Specific Month') {
+            const now = new Date();
+            const targetKey = stmtMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const [yr, mo] = targetKey.split('-').map(Number);
+            return new Date(yr, mo - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+        }
+        if (stmtTimeFilter === 'Custom Range') {
+            return `${stmtCustomStart || '...'} to ${stmtCustomEnd || '...'}`;
+        }
+        return stmtTimeFilter;
+    }, [stmtTimeFilter, stmtMonth, stmtCustomStart, stmtCustomEnd]);
 
     const goPrevMonth = () => {
-        const [yr, mo] = selectedMonthKey.split('-').map(Number);
+        const now = new Date();
+        const targetKey = stmtMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const [yr, mo] = targetKey.split('-').map(Number);
         const d = new Date(yr, mo - 2, 1);
         setStmtMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        setStmtTimeFilter('Specific Month');
     };
     const goNextMonth = () => {
-        const [yr, mo] = selectedMonthKey.split('-').map(Number);
+        const now = new Date();
+        const targetKey = stmtMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const [yr, mo] = targetKey.split('-').map(Number);
         const d = new Date(yr, mo, 1);
         setStmtMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        setStmtTimeFilter('Specific Month');
     };
-    const canGoPrev = true; // Allow navigating back indefinitely
-    const canGoNext = true; // Allow navigating forward indefinitely
 
     // ── Filtered transactions (analytics) ─────────────────────────────────
     const filteredTransactions = useMemo(() => {
@@ -107,14 +156,13 @@ export default function ReportsPage() {
         return allTransactions.filter(tx => {
             if (clientFilter !== 'All Clients' && String(tx.client_id) !== String(clientFilter)) return false;
             const txDate = new Date(tx.date);
-
             switch (timeFilter) {
-                case 'Last 30 Days': {
-                    const limit = new Date(today); limit.setDate(limit.getDate() - 30);
+                case 'Last Month': {
+                    const limit = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                     return txDate >= limit;
                 }
-                case 'Last 90 Days': {
-                    const limit = new Date(today); limit.setDate(limit.getDate() - 90);
+                case 'Last 3 Months': {
+                    const limit = new Date(now.getFullYear(), now.getMonth() - 2, 1);
                     return txDate >= limit;
                 }
                 case 'Year to Date': {
@@ -138,18 +186,14 @@ export default function ReportsPage() {
     // ── Statement data ─────────────────────────────────────────────────────
     const statementData = useMemo(() => {
         if (!allTransactions || allTransactions.length === 0) return { days: [], payoutRecipients: [] };
-        const [yr, mo] = (selectedMonthKey || '').split('-').map(Number);
-        if (!yr || !mo) return { days: [], payoutRecipients: [] };
+        const { start: startDate, end: endDate } = stmtDateRange;
+        if (!startDate || !endDate) return { days: [], payoutRecipients: [] };
 
-        const monthEnd = new Date(yr, mo, 0);
-
-        // Filter transactions for this month
-        const monthTx = allTransactions.filter(tx => {
+        // Filter transactions for this period
+        const periodTx = allTransactions.filter(tx => {
             const d = new Date(tx.date);
-            return d.getFullYear() === yr && d.getMonth() + 1 === mo;
+            return d >= startDate && d <= endDate;
         });
-
-        const startDate = new Date(yr, mo - 1, 1);
 
         // 0. Calculate Balance Brought Forward
         const prevTx = allTransactions.filter(tx => {
@@ -162,31 +206,36 @@ export default function ReportsPage() {
         const startingOutflow = prevTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
         const balanceForward = startingInflow - startingOutflow;
 
-        // 1. Payout Transactions for the month - Right Side
-        const payoutTransactions = monthTx
+        // 1. Payout Transactions for the period - Right Side
+        const payoutTransactions = periodTx
             .filter(tx => tx.type === 'OUT')
             .filter(tx => stmtClient === 'All Clients' || String(tx.client_id) === String(stmtClient))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        // 2. Generate All Days and calculate daily inflow totals - Left Side
+        // 2. Generate Days and calculate daily inflow totals
         const days = [];
         let runningNetBalance = balanceForward;
 
-        for (let d = 1; d <= monthEnd.getDate(); d++) {
-            const date = new Date(yr, mo - 1, d);
+        let curr = new Date(startDate);
+        // Normalize curr to start of day for iteration
+        curr.setHours(0, 0, 0, 0);
+        
+        while (curr <= endDate) {
+            const d = curr.getDate();
+            const mo = curr.getMonth() + 1;
+            const yr = curr.getFullYear();
             const dateKey = `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-            // For inflows, we optionally filter by client if stmtClient !== 'All Clients'
-            const inflows = monthTx.filter(tx => {
+            const inflows = periodTx.filter(tx => {
                 const txD = new Date(tx.date);
-                if (txD.getDate() !== d || tx.type !== 'IN') return false;
+                if (txD.getFullYear() !== yr || txD.getMonth() + 1 !== mo || txD.getDate() !== d || tx.type !== 'IN') return false;
                 if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
                 return true;
             });
             
-            const payouts = monthTx.filter(tx => {
+            const payouts = periodTx.filter(tx => {
                 const txD = new Date(tx.date);
-                if (txD.getDate() !== d || tx.type !== 'OUT') return false;
+                if (txD.getFullYear() !== yr || txD.getMonth() + 1 !== mo || txD.getDate() !== d || tx.type !== 'OUT') return false;
                 if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
                 return true;
             });
@@ -197,20 +246,24 @@ export default function ReportsPage() {
             
             runningNetBalance += (dayInflowTotal - dayPayoutTotal);
             
-            days.push({
-                dateKey,
-                date,
-                inflows,
-                payouts,
-                dayTotal: dayInflowTotal,
-                dayTotalNaira: dayInflowTotalNaira,
-                dayPayoutTotal,
-                mainTotal: runningNetBalance
-            });
+            if (inflows.length > 0 || payouts.length > 0) {
+                days.push({
+                    dateKey,
+                    date: new Date(curr),
+                    inflows,
+                    payouts,
+                    dayTotal: dayInflowTotal,
+                    dayTotalNaira: dayInflowTotalNaira,
+                    dayPayoutTotal,
+                    mainTotal: runningNetBalance
+                });
+            }
+            
+            curr.setDate(curr.getDate() + 1);
         }
         
         return { days, payoutTransactions, balanceForward };
-    }, [allTransactions, selectedMonthKey, stmtClient]);
+    }, [allTransactions, stmtDateRange, stmtClient]);
 
     const statementDays = statementData.days;
     const payoutTransactions = statementData.payoutTransactions;
@@ -222,7 +275,7 @@ export default function ReportsPage() {
     // ── Chart data ─────────────────────────────────────────────────────────
     const { trendData, comparisonData } = useMemo(() => {
         if (filteredTransactions.length === 0) return { trendData: [], comparisonData: [] };
-        const groupByDay = timeFilter === 'Last 30 Days' || timeFilter === 'Custom Range';
+        const groupByDay = timeFilter === 'Last Month' || timeFilter === 'Custom Range';
 
         const aggregated = filteredTransactions.reduce((acc, tx) => {
             const date = new Date(tx.date);
@@ -282,8 +335,8 @@ export default function ReportsPage() {
         };
     }, [filteredTransactions, timeFilter, customStart, customEnd, allTransactions]);
 
-    // ── Export CSV (analytics view) ────────────────────────────────────────
-    const handleExport = () => {
+    // ── Export Analytics ──────────────────────────────────────────────────
+    const handleExportCSV = () => {
         if (filteredTransactions.length === 0) return;
         const headers = ['Date', 'Time', 'Client/Counterparty', 'Recipient/Narration', 'Type', 'Amount (NGN)', 'Balance Effect (AED)', 'Unique ID'];
         const rows = filteredTransactions.map(tx => {
@@ -305,11 +358,84 @@ export default function ReportsPage() {
         const link = document.createElement('a');
         const client = clientFilter === 'All Clients' ? 'all_clients' : `client_${clientFilter}`;
         link.setAttribute('href', url);
-        link.setAttribute('download', `finance_report_${client}_${timeFilter.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.setAttribute('download', `analytics_${client}_${timeFilter.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    const handleExportAnalyticsPDF = () => {
+        if (filteredTransactions.length === 0) return;
+
+        const doc = new jsPDF();
+        const clientName = clientFilter === 'All Clients' ? 'All Clients' : (clients.find(c => String(c.id) === String(clientFilter))?.name || 'Client');
+        const period = timeFilter;
+
+        // Title
+        doc.setFontSize(20);
+        doc.setTextColor(124, 58, 237);
+        doc.text('Analytics Report', 14, 22);
+
+        // Subheader
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Client: ${clientName}`, 14, 32);
+        doc.text(`Period: ${period}`, 14, 37);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+
+        // Summary Stats
+        doc.setDrawColor(226, 232, 240);
+        doc.setFillColor(248, 250, 252);
+        doc.rect(14, 50, 182, 25, 'FD');
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text('TOTAL TRANSACTIONS', 20, 57);
+        doc.text('AVG TRANSACTION', 80, 57);
+        doc.text('TOTAL VOLUME (NGN)', 140, 57);
+
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`${stats.txCount}`, 20, 65);
+        doc.text(`Naira ${stats.avgTx.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 80, 65);
+        const totalVolume = filteredTransactions.reduce((acc, tx) => acc + (tx.amount_naira || 0), 0);
+        doc.text(`Naira ${totalVolume.toLocaleString()}`, 140, 65);
+
+        // Table
+        const tableRows = filteredTransactions.map(tx => [
+            new Date(tx.date).toLocaleDateString('en-GB'),
+            tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
+            tx.client_name || '-',
+            tx.recipient || tx.narration || '-',
+            tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
+            `${tx.type === 'IN' ? '+' : '-'}${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        ]);
+
+        autoTable(doc, {
+            startY: 85,
+            head: [['Date', 'Type', 'Client', 'Description', 'Amount (NGN)', 'AED Effect']],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontSize: 9 },
+            bodyStyles: { fontSize: 8 },
+            columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 20 },
+                2: { cellWidth: 35 },
+                3: { cellWidth: 'auto' },
+                4: { cellWidth: 30, halign: 'right' },
+                5: { cellWidth: 30, halign: 'right' }
+            },
+            margin: { top: 20 },
+            didDrawPage: (data) => {
+                doc.setFontSize(7);
+                doc.setTextColor(150);
+                doc.text(`Page ${data.pageNumber}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+            }
+        });
+
+        doc.save(`Analytics_${clientName.replace(/\s+/g, '_')}_${period.replace(/\s+/g, '_')}.pdf`);
     };
 
     // ── Export statement CSV ───────────────────────────────────────────────
@@ -357,36 +483,37 @@ export default function ReportsPage() {
                 rows.push('');
             }
         });
-        rows.push(['MONTHLY FINAL NET BALANCE', '', '', '', '', (statementDays[statementDays.length - 1]?.mainTotal || 0).toFixed(2), ''].join(','));
+        rows.push(['PERIOD FINAL NET BALANCE', '', '', '', '', (statementDays[statementDays.length - 1]?.mainTotal || 0).toFixed(2), ''].join(','));
         const csv = rows.join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
+        const rangeStr = selectedRangeLabel.replace(/\s+/g, '_').toLowerCase();
         link.setAttribute('href', url);
-        link.setAttribute('download', `statement_${selectedMonthKey}_${stmtClient === 'All Clients' ? 'all' : stmtClient}.csv`);
+        link.setAttribute('download', `statement_${rangeStr}_${stmtClient === 'All Clients' ? 'all' : stmtClient}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     };
 
-    const handleExportPDF = () => {
+    const handleExportStatementPDF = () => {
         if (statementDays.length === 0) return;
 
         const doc = new jsPDF();
         const clientName = stmtClient === 'All Clients' ? 'All Clients' : (clients.find(c => String(c.id) === String(stmtClient))?.name || 'Client');
-        const monthYear = selectedMonthKey;
+        const rangeText = selectedRangeLabel;
 
         // Title
         doc.setFontSize(20);
         doc.setTextColor(124, 58, 237); // Primary color
-        doc.text('Monthly Financial Statement', 14, 22);
+        doc.text('Financial Statement', 14, 22);
 
         // Subheader
         doc.setFontSize(10);
         doc.setTextColor(100, 116, 139);
         doc.text(`Client: ${clientName}`, 14, 32);
-        doc.text(`Month: ${monthYear}`, 14, 37);
+        doc.text(`Period: ${rangeText}`, 14, 37);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
 
         // Summary Boxes
@@ -397,7 +524,7 @@ export default function ReportsPage() {
         doc.setFontSize(9);
         doc.setTextColor(100, 116, 139);
         doc.text('BALANCE BROUGHT FORWARD', 20, 57);
-        doc.text('MONTHLY FINAL NET BALANCE', 130, 57);
+        doc.text('PERIOD FINAL NET BALANCE', 130, 57);
 
         doc.setFontSize(11);
         doc.setTextColor(30, 41, 59);
@@ -457,7 +584,7 @@ export default function ReportsPage() {
             }
         });
 
-        doc.save(`Statement_${clientName.replace(/\s+/g, '_')}_${monthYear}.pdf`);
+        doc.save(`Statement_${clientName.replace(/\s+/g, '_')}_${rangeText.replace(/\s+/g, '_')}.pdf`);
     };
 
     if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>Loading Reports...</div>;
@@ -532,8 +659,8 @@ export default function ReportsPage() {
                         </div>
                         <div className="report-select-wrapper">
                             <select className="report-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
-                                <option>Last 30 Days</option>
-                                <option>Last 90 Days</option>
+                                <option>Last Month</option>
+                                <option>Last 3 Months</option>
                                 <option>Year to Date</option>
                                 <option>All Time</option>
                                 <option>Custom Range</option>
@@ -547,14 +674,24 @@ export default function ReportsPage() {
                                 <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ padding: '0.55rem 0.85rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.875rem', fontWeight: 600 }} />
                             </div>
                         )}
-                        <button
-                            onClick={handleExport}
-                            disabled={filteredTransactions.length === 0}
-                            className="btn-premium btn-primary-premium shadow-lg shadow-violet-200 py-2"
-                            style={{ opacity: filteredTransactions.length === 0 ? 0.5 : 1, marginLeft: 'auto' }}
-                        >
-                            <Download size={18} /> Export CSV
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.75rem', marginLeft: 'auto' }}>
+                            <button
+                                onClick={handleExportAnalyticsPDF}
+                                disabled={filteredTransactions.length === 0}
+                                className="btn-premium shadow-lg shadow-violet-200 py-2"
+                                style={{ background: '#7c3aed', color: 'white', borderRadius: 8, padding: '0.55rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', border: 'none', cursor: 'pointer', opacity: filteredTransactions.length === 0 ? 0.5 : 1 }}
+                            >
+                                <Download size={18} /> Export PDF
+                            </button>
+                            <button
+                                onClick={handleExportCSV}
+                                disabled={filteredTransactions.length === 0}
+                                className="btn-premium shadow-lg shadow-violet-200 py-2"
+                                style={{ background: 'white', color: '#7c3aed', border: '1px solid #7c3aed', borderRadius: 8, padding: '0.55rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: filteredTransactions.length === 0 ? 0.5 : 1 }}
+                            >
+                                <Download size={18} /> Export CSV
+                            </button>
+                        </div>
                     </div>
 
                     {/* Charts */}
@@ -696,65 +833,6 @@ export default function ReportsPage() {
                     {/* Statement header / filters */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.75rem' }}>
                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0',
-                                background: 'white',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: 10,
-                                overflow: 'hidden',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                            }}>
-                                <button
-                                    onClick={goPrevMonth}
-                                    disabled={!canGoPrev}
-                                    title="Previous month"
-                                    style={{
-                                        padding: '0.55rem 0.75rem',
-                                        border: 'none',
-                                        borderRight: '1px solid #e2e8f0',
-                                        background: canGoPrev ? 'white' : '#f8fafc',
-                                        cursor: canGoPrev ? 'pointer' : 'not-allowed',
-                                        color: canGoPrev ? '#7c3aed' : '#cbd5e1',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        transition: 'background 0.15s',
-                                    }}
-                                >
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <span style={{
-                                    padding: '0.55rem 1.1rem',
-                                    fontWeight: 700,
-                                    fontSize: '0.875rem',
-                                    color: '#1e293b',
-                                    minWidth: 140,
-                                    textAlign: 'center',
-                                    letterSpacing: '0.01em',
-                                }}>
-                                    {selectedMonthLabel}
-                                </span>
-                                <button
-                                    onClick={goNextMonth}
-                                    disabled={!canGoNext}
-                                    title="Next month"
-                                    style={{
-                                        padding: '0.55rem 0.75rem',
-                                        border: 'none',
-                                        borderLeft: '1px solid #e2e8f0',
-                                        background: canGoNext ? 'white' : '#f8fafc',
-                                        cursor: canGoNext ? 'pointer' : 'not-allowed',
-                                        color: canGoNext ? '#7c3aed' : '#cbd5e1',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        transition: 'background 0.15s',
-                                    }}
-                                >
-                                    <ChevronDown style={{ transform: 'rotate(-90deg)' }} size={16} />
-                                </button>
-                            </div>
-
                             <div className="report-select-wrapper">
                                 <select
                                     className="report-select"
@@ -766,10 +844,93 @@ export default function ReportsPage() {
                                 </select>
                                 <ChevronDown className="report-select-icon" />
                             </div>
+
+                            <div className="report-select-wrapper">
+                                <select
+                                    className="report-select"
+                                    value={stmtTimeFilter}
+                                    onChange={e => setStmtTimeFilter(e.target.value)}
+                                >
+                                    <option>This Month</option>
+                                    <option>Last Month</option>
+                                    <option>Last 3 Months</option>
+                                    <option>Year to Date</option>
+                                    <option>Specific Month</option>
+                                    <option>Custom Range</option>
+                                </select>
+                                <ChevronDown className="report-select-icon" />
+                            </div>
+
+                            {stmtTimeFilter === 'Specific Month' && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0',
+                                    background: 'white',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 10,
+                                    overflow: 'hidden',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                                }}>
+                                    <button
+                                        onClick={goPrevMonth}
+                                        title="Previous month"
+                                        style={{
+                                            padding: '0.55rem 0.75rem',
+                                            border: 'none',
+                                            borderRight: '1px solid #e2e8f0',
+                                            background: 'white',
+                                            cursor: 'pointer',
+                                            color: '#7c3aed',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            transition: 'background 0.15s',
+                                        }}
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    <span style={{
+                                        padding: '0.55rem 1.1rem',
+                                        fontWeight: 700,
+                                        fontSize: '0.875rem',
+                                        color: '#1e293b',
+                                        minWidth: 140,
+                                        textAlign: 'center',
+                                        letterSpacing: '0.01em',
+                                    }}>
+                                        {selectedRangeLabel}
+                                    </span>
+                                    <button
+                                        onClick={goNextMonth}
+                                        title="Next month"
+                                        style={{
+                                            padding: '0.55rem 0.75rem',
+                                            border: 'none',
+                                            borderLeft: '1px solid #e2e8f0',
+                                            background: 'white',
+                                            cursor: 'pointer',
+                                            color: '#7c3aed',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            transition: 'background 0.15s',
+                                        }}
+                                    >
+                                        <ChevronDown style={{ transform: 'rotate(-90deg)' }} size={16} />
+                                    </button>
+                                </div>
+                            )}
+
+                            {stmtTimeFilter === 'Custom Range' && (
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <input type="date" value={stmtCustomStart} onChange={e => setStmtCustomStart(e.target.value)} style={{ padding: '0.55rem 0.85rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.875rem', fontWeight: 600 }} />
+                                    <span style={{ color: '#94a3b8', fontWeight: 600, fontSize: '0.85rem' }}>to</span>
+                                    <input type="date" value={stmtCustomEnd} onChange={e => setStmtCustomEnd(e.target.value)} style={{ padding: '0.55rem 0.85rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.875rem', fontWeight: 600 }} />
+                                </div>
+                            )}
                         </div>
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                             <button
-                                onClick={handleExportPDF}
+                                onClick={handleExportStatementPDF}
                                 disabled={statementDays.length === 0}
                                 className="action-button-premium"
                                 style={{ background: "#7c3aed", color: "white", padding: "0.6rem 1.25rem", borderRadius: 10, display: "flex", alignItems: "center", gap: "0.5rem", border: "none", cursor: "pointer", opacity: statementDays.length === 0 ? 0.5 : 1 }}

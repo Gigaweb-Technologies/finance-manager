@@ -32,9 +32,48 @@ import axios from 'axios';
 export default function TransactionsPage() {
     const { clients, allTransactions, loading, searchQuery, setSearchQuery, refreshData } = useData();
     const [typeFilter, setTypeFilter] = useState('All Types');
+    const [timeFilter, setTimeFilter] = useState('This Month');
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
     const [activeModal, setActiveModal] = useState(null);
     const [selectedTx, setSelectedTx] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const dateRange = useMemo(() => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        let start, end = new Date(today);
+        end.setHours(23, 59, 59, 999);
+
+        switch (timeFilter) {
+            case 'This Month':
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                break;
+            case 'Last Month':
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                break;
+            case 'Last 3 Months':
+                start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                break;
+            case 'Year to Date':
+                start = new Date(now.getFullYear(), 0, 1);
+                break;
+            case 'Custom Range':
+                start = customStart ? new Date(customStart) : new Date(2000, 0, 1);
+                if (customEnd) {
+                    end = new Date(customEnd);
+                    end.setHours(23, 59, 59, 999);
+                }
+                break;
+            case 'All Time':
+            default:
+                return null;
+        }
+        return { start, end };
+    }, [timeFilter, customStart, customEnd]);
 
     const handleEdit = (tx) => {
         setSelectedTx(tx);
@@ -85,8 +124,9 @@ export default function TransactionsPage() {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
+        const rangeStr = timeFilter.replace(/\s+/g, '_').toLowerCase();
         link.setAttribute('href', url);
-        link.setAttribute('download', `transactions_history_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.setAttribute('download', `transactions_${rangeStr}_${new Date().toISOString().slice(0, 10)}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -106,8 +146,9 @@ export default function TransactionsPage() {
         // Subheader
         doc.setFontSize(10);
         doc.setTextColor(100, 116, 139);
-        doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 32);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 37);
+        doc.text(`Period: ${timeFilter}`, 14, 32);
+        doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 37);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
 
         // Table
         const tableRows = filteredTransactions.map(tx => [
@@ -121,7 +162,7 @@ export default function TransactionsPage() {
         ]);
 
         autoTable(doc, {
-            startY: 45,
+            startY: 50,
             head: [['ID', 'Date', 'Client', 'Type', 'NGN Amount', 'AED Amount', 'Status']],
             body: tableRows,
             theme: 'striped',
@@ -144,7 +185,8 @@ export default function TransactionsPage() {
             }
         });
 
-        doc.save(`Transaction_History_${new Date().toISOString().slice(0, 10)}.pdf`);
+        const rangeStr = timeFilter.replace(/\s+/g, '_').toLowerCase();
+        doc.save(`Transactions_${rangeStr}_${new Date().toISOString().slice(0, 10)}.pdf`);
     };
 
     const filteredTransactions = useMemo(() => {
@@ -157,10 +199,16 @@ export default function TransactionsPage() {
             const matchesType = typeFilter === 'All Types' || 
                 (typeFilter === 'Inflow' && t.type === 'IN') || 
                 (typeFilter === 'Payout' && t.type === 'OUT');
+
+            let matchesDate = true;
+            if (dateRange) {
+                const txDate = new Date(t.date);
+                matchesDate = txDate >= dateRange.start && txDate <= dateRange.end;
+            }
             
-            return matchesSearch && matchesType;
+            return matchesSearch && matchesType && matchesDate;
         });
-    }, [allTransactions, searchQuery, typeFilter]);
+    }, [allTransactions, searchQuery, typeFilter, dateRange]);
 
     const stats = useMemo(() => {
         const totalInflowsCount = filteredTransactions.filter(t => t.type === 'IN').length;
@@ -295,6 +343,39 @@ export default function TransactionsPage() {
                   }}
                 />
               </div>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={timeFilter}
+                  onChange={(e) => setTimeFilter(e.target.value)}
+                  style={{
+                    padding: "0.5rem 2rem 0.5rem 1rem",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                    background: "#f8fafc",
+                    fontSize: "0.85rem",
+                    appearance: "none",
+                    cursor: "pointer",
+                    minWidth: "120px",
+                    color: "var(--text-main)",
+                    outline: "none"
+                  }}
+                >
+                  <option>This Month</option>
+                  <option>Last Month</option>
+                  <option>Last 3 Months</option>
+                  <option>Year to Date</option>
+                  <option>All Time</option>
+                  <option>Custom Range</option>
+                </select>
+                <ChevronDown size={14} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
+              </div>
+              {timeFilter === 'Custom Range' && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-color)', fontSize: '0.85rem' }} />
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
+                    <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border-color)', fontSize: '0.85rem' }} />
+                </div>
+              )}
               <div style={{ position: 'relative' }}>
                 <select
                   value={typeFilter}
