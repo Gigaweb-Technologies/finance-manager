@@ -150,16 +150,30 @@ export default function TransactionsPage() {
         doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 37);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
 
+        const totalIn = filteredTransactions.filter(t => t.type === 'IN').reduce((sum, t) => sum + (t.amount_aed || 0), 0);
+        const totalOut = filteredTransactions.filter(t => t.type === 'OUT').reduce((sum, t) => sum + (t.amount_aed || 0), 0);
+
+        doc.setTextColor(16, 185, 129); // Green
+        doc.text(`Total Inflow: +${totalIn.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 120, 32);
+        doc.setTextColor(225, 29, 72); // Red
+        doc.text(`Total Outflow: -${totalOut.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 120, 37);
+
         // Table
-        const tableRows = filteredTransactions.map(tx => [
-            tx.transaction_unique_id?.substring(0, 8).toUpperCase() || `TRX-${String(tx.id).padStart(5, '0')}`,
-            new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-            tx.client_name || 'N/A',
-            tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
-            tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
-            `${tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`,
-            tx.status || 'COMPLETED'
-        ]);
+        const tableRows = filteredTransactions.map(tx => {
+            const isOut = tx.type === 'OUT';
+            return [
+                tx.transaction_unique_id?.substring(0, 8).toUpperCase() || `TRX-${String(tx.id).padStart(5, '0')}`,
+                new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                tx.client_name || 'N/A',
+                isOut ? 'PAYOUT' : 'INFLOW',
+                tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
+                {
+                    content: `${isOut ? '-' : '+'}${tx.amount_aed?.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`,
+                    styles: { textColor: isOut ? [225, 29, 72] : [16, 185, 129] }
+                },
+                tx.status || 'COMPLETED'
+            ];
+        });
 
         autoTable(doc, {
             startY: 50,
@@ -227,8 +241,7 @@ export default function TransactionsPage() {
             totalInflows: totalInflowsCount,
             inflowPercentage: inflowPercentage,
             totalPayouts: totalPayoutsCount,
-            payoutPercentage: payoutPercentage,
-            pendingReview: pendingReviewCount
+            payoutPercentage: payoutPercentage
         };
     }, [filteredTransactions]);
 
@@ -273,8 +286,8 @@ export default function TransactionsPage() {
         </div>
 
         {/* Summary Stats Row */}
-        <div className="stats-grid-premium" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: '2.5rem' }}>
-          <div className="premium-card" style={{ padding: '1.25rem' }}>
+        <div className="stats-grid-premium" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '2.5rem' }}>
+          <div className="premium-card" style={{ padding: '1.25rem', cursor: 'pointer', border: typeFilter === 'All Types' ? '2px solid #7c3aed' : 'none' }} onClick={() => setTypeFilter('All Types')}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
               <div style={{ width: 40, height: 40, borderRadius: '10px', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                 <FileText size={20} />
@@ -285,7 +298,7 @@ export default function TransactionsPage() {
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>All time</div>
           </div>
 
-          <div className="premium-card" style={{ padding: '1.25rem' }}>
+          <div className="premium-card" style={{ padding: '1.25rem', cursor: 'pointer', border: typeFilter === 'Inflow' ? '2px solid #10b981' : 'none' }} onClick={() => setTypeFilter('Inflow')}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
               <div style={{ width: 40, height: 40, borderRadius: '10px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
                 <TrendingUp size={20} />
@@ -296,7 +309,7 @@ export default function TransactionsPage() {
             <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>{stats.inflowPercentage}% of total</div>
           </div>
 
-          <div className="premium-card" style={{ padding: '1.25rem' }}>
+          <div className="premium-card" style={{ padding: '1.25rem', cursor: 'pointer', border: typeFilter === 'Payout' ? '2px solid #ef4444' : 'none' }} onClick={() => setTypeFilter('Payout')}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
               <div style={{ width: 40, height: 40, borderRadius: '10px', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
                 <TrendingDown size={20} />
@@ -305,17 +318,6 @@ export default function TransactionsPage() {
             </div>
             <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.2rem' }}>{stats.totalPayouts.toLocaleString()}</div>
             <div style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>{stats.payoutPercentage}% of total</div>
-          </div>
-
-          <div className="premium-card" style={{ padding: '1.25rem' }}>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ width: 40, height: 40, borderRadius: '10px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
-                <Clock size={20} />
-              </div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Pending Review</span>
-            </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.2rem' }}>{stats.pendingReview.toLocaleString()}</div>
-            <div style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>Requires action</div>
           </div>
         </div>
 

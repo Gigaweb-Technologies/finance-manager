@@ -20,20 +20,20 @@ const DepositModal = ({ isOpen, onClose, clients, onTransactionAdded }) => {
     if (!isOpen) return null;
 
     const handleSourceChange = (val) => {
-        const rate = parseFloat(form.exchange_rate) || 1;
+        const rate = parseFloat(form.exchange_rate);
         setForm({
             ...form,
             amount_source: val,
-            amount_aed: val ? (parseFloat(val) * rate).toFixed(2) : ''
+            amount_aed: val && !isNaN(rate) ? (parseFloat(val) * rate).toFixed(2) : ''
         });
     };
     
     const handleRateChange = (val) => {
-        const rate = parseFloat(val) || 1;
+        const rate = parseFloat(val);
         setForm({
             ...form,
             exchange_rate: val,
-            amount_aed: form.amount_source ? (parseFloat(form.amount_source) * rate).toFixed(2) : ''
+            amount_aed: form.amount_source && !isNaN(rate) ? (parseFloat(form.amount_source) * rate).toFixed(2) : ''
         });
     };
 

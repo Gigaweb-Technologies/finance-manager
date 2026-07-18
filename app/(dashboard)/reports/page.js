@@ -63,7 +63,7 @@ export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'statement'
 
     // ── Analytics filters ─────────────────────────────────────────────────
-    const [timeFilter, setTimeFilter] = useState('Last Month');
+    const [timeFilter, setTimeFilter] = useState('This Month');
     const [clientFilter, setClientFilter] = useState('All Clients');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
@@ -105,9 +105,15 @@ export default function ReportsPage() {
                 end = new Date(yr, mo, 0, 23, 59, 59, 999);
                 break;
             case 'Custom Range':
-                start = stmtCustomStart ? new Date(stmtCustomStart) : new Date(today);
+                if (stmtCustomStart) {
+                    const [y, m, d] = stmtCustomStart.split('-');
+                    start = new Date(y, m - 1, d);
+                } else {
+                    start = new Date(today);
+                }
                 if (stmtCustomEnd) {
-                    end = new Date(stmtCustomEnd);
+                    const [y, m, d] = stmtCustomEnd.split('-');
+                    end = new Date(y, m - 1, d);
                     end.setHours(23, 59, 59, 999);
                 }
                 break;
@@ -157,21 +163,34 @@ export default function ReportsPage() {
             if (clientFilter !== 'All Clients' && String(tx.client_id) !== String(clientFilter)) return false;
             const txDate = new Date(tx.date);
             switch (timeFilter) {
+                case 'This Month': {
+                    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    return txDate >= start && txDate <= end;
+                }
                 case 'Last Month': {
-                    const limit = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                    return txDate >= limit;
+                    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    return txDate >= start && txDate <= end;
                 }
                 case 'Last 3 Months': {
-                    const limit = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-                    return txDate >= limit;
+                    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    return txDate >= start && txDate <= end;
                 }
                 case 'Year to Date': {
                     return txDate >= new Date(today.getFullYear(), 0, 1);
                 }
                 case 'Custom Range': {
-                    if (customStart && txDate < new Date(customStart)) return false;
+                    if (customStart) {
+                        const [y, m, d] = customStart.split('-');
+                        const start = new Date(y, m - 1, d);
+                        if (txDate < start) return false;
+                    }
                     if (customEnd) {
-                        const end = new Date(customEnd); end.setHours(23, 59, 59, 999);
+                        const [y, m, d] = customEnd.split('-');
+                        const end = new Date(y, m - 1, d);
+                        end.setHours(23, 59, 59, 999);
                         if (txDate > end) return false;
                     }
                     return true;
@@ -196,15 +215,24 @@ export default function ReportsPage() {
         });
 
         // 0. Calculate Balance Brought Forward
-        const prevTx = allTransactions.filter(tx => {
+        // Derive backwards from current balance to account for any manual balance updates or initial balances
+        let currentTotalBalance = 0;
+        if (stmtClient === 'All Clients') {
+            currentTotalBalance = clients.reduce((sum, c) => sum + (c.balance_aed || 0), 0);
+        } else {
+            const client = clients.find(c => String(c.id) === String(stmtClient));
+            currentTotalBalance = client?.balance_aed || 0;
+        }
+
+        const laterTx = allTransactions.filter(tx => {
             const d = new Date(tx.date);
-            if (d >= startDate) return false;
+            if (d < startDate) return false;
             if (stmtClient !== 'All Clients' && String(tx.client_id) !== String(stmtClient)) return false;
             return true;
         });
-        const startingInflow = prevTx.filter(tx => tx.type === 'IN').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
-        const startingOutflow = prevTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
-        const balanceForward = startingInflow - startingOutflow;
+        const laterInflow = laterTx.filter(tx => tx.type === 'IN').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+        const laterOutflow = laterTx.filter(tx => tx.type === 'OUT').reduce((sum, tx) => sum + (tx.amount_aed || 0), 0);
+        const balanceForward = currentTotalBalance - laterInflow + laterOutflow;
 
         // 1. Payout Transactions for the period - Right Side
         const payoutTransactions = periodTx
@@ -385,35 +413,56 @@ export default function ReportsPage() {
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
 
         // Summary Stats
+        const totalInflow = filteredTransactions.filter(t => t.type === 'IN').reduce((acc, tx) => acc + (tx.amount_aed || 0), 0);
+        const totalOutflow = filteredTransactions.filter(t => t.type === 'OUT').reduce((acc, tx) => acc + (tx.amount_aed || 0), 0);
+        const totalVolume = filteredTransactions.reduce((acc, tx) => acc + (tx.amount_naira || 0), 0);
+
         doc.setDrawColor(226, 232, 240);
         doc.setFillColor(248, 250, 252);
-        doc.rect(14, 50, 182, 25, 'FD');
+        doc.rect(14, 50, 182, 35, 'FD');
 
         doc.setFontSize(9);
         doc.setTextColor(100, 116, 139);
         doc.text('TOTAL TRANSACTIONS', 20, 57);
-        doc.text('AVG TRANSACTION', 80, 57);
-        doc.text('TOTAL VOLUME (NGN)', 140, 57);
+        doc.text('TOTAL INFLOW (AED)', 75, 57);
+        doc.text('TOTAL OUTFLOW (AED)', 130, 57);
 
         doc.setFontSize(11);
         doc.setTextColor(30, 41, 59);
-        doc.text(`${stats.txCount}`, 20, 65);
-        doc.text(`Naira ${stats.avgTx.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 80, 65);
-        const totalVolume = filteredTransactions.reduce((acc, tx) => acc + (tx.amount_naira || 0), 0);
-        doc.text(`Naira ${totalVolume.toLocaleString()}`, 140, 65);
+        doc.text(`${stats.txCount}`, 20, 64);
+        doc.setTextColor(16, 185, 129); // Green
+        doc.text(`+${totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 75, 64);
+        doc.setTextColor(225, 29, 72); // Red
+        doc.text(`-${totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 130, 64);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text('TOTAL VOLUME (NGN)', 20, 75);
+        doc.text('AVG TRANSACTION (NGN)', 75, 75);
+
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`${totalVolume.toLocaleString()}`, 20, 82);
+        doc.text(`${stats.avgTx.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 75, 82);
 
         // Table
-        const tableRows = filteredTransactions.map(tx => [
-            new Date(tx.date).toLocaleDateString('en-GB'),
-            tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
-            tx.client_name || '-',
-            tx.recipient || tx.narration || '-',
-            tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
-            `${tx.type === 'IN' ? '+' : '-'}${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-        ]);
+        const tableRows = filteredTransactions.map(tx => {
+            const isOut = tx.type === 'OUT';
+            return [
+                new Date(tx.date).toLocaleDateString('en-GB'),
+                isOut ? 'PAYOUT' : 'INFLOW',
+                tx.client_name || '-',
+                tx.recipient || tx.narration || '-',
+                tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
+                {
+                    content: `${isOut ? '-' : '+'}${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    styles: { textColor: isOut ? [225, 29, 72] : [16, 185, 129] }
+                }
+            ];
+        });
 
         autoTable(doc, {
-            startY: 85,
+            startY: 95,
             head: [['Date', 'Type', 'Client', 'Description', 'Amount (NGN)', 'AED Effect']],
             body: tableRows,
             theme: 'striped',
@@ -516,21 +565,35 @@ export default function ReportsPage() {
         doc.text(`Period: ${rangeText}`, 14, 37);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
 
+        // Calculate total inflow and outflow for the period
+        const periodTotalInflow = statementDays.reduce((sum, day) => sum + day.dayTotal, 0);
+        const periodTotalOutflow = statementDays.reduce((sum, day) => sum + day.dayPayoutTotal, 0);
+
         // Summary Boxes
         doc.setDrawColor(226, 232, 240);
         doc.setFillColor(248, 250, 252);
-        doc.rect(14, 50, 182, 20, 'FD');
+        doc.rect(14, 50, 182, 35, 'FD');
 
         doc.setFontSize(9);
         doc.setTextColor(100, 116, 139);
         doc.text('BALANCE BROUGHT FORWARD', 20, 57);
-        doc.text('PERIOD FINAL NET BALANCE', 130, 57);
+        doc.text('PERIOD INFLOW', 75, 57);
+        doc.text('PERIOD OUTFLOW', 130, 57);
 
         doc.setFontSize(11);
         doc.setTextColor(30, 41, 59);
         doc.text(`${statementData.balanceForward.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 20, 64);
+        doc.setTextColor(16, 185, 129); // Green
+        doc.text(`+${periodTotalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 75, 64);
+        doc.setTextColor(225, 29, 72); // Red
+        doc.text(`-${periodTotalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 130, 64);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text('PERIOD FINAL NET BALANCE', 20, 75);
+        doc.setFontSize(12);
         doc.setTextColor(124, 58, 237);
-        doc.text(`${(statementDays[statementDays.length - 1]?.mainTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 130, 64);
+        doc.text(`${(statementDays[statementDays.length - 1]?.mainTotal || statementData.balanceForward).toLocaleString(undefined, { minimumFractionDigits: 2 })} AED`, 20, 82);
 
         // Table
         const tableRows = [];
@@ -539,12 +602,16 @@ export default function ReportsPage() {
             const allDayTx = [...day.inflows, ...day.payouts].sort((a, b) => new Date(a.date) - new Date(b.date));
             
             allDayTx.forEach(tx => {
+                const isOut = tx.type === 'OUT';
                 tableRows.push([
                     new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-                    tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
+                    isOut ? 'PAYOUT' : 'INFLOW',
                     tx.recipient || tx.narration || '-',
                     tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
-                    tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })
+                    {
+                        content: isOut ? `-${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `+${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                        styles: { textColor: isOut ? [225, 29, 72] : [16, 185, 129] }
+                    }
                 ]);
             });
 
@@ -563,7 +630,7 @@ export default function ReportsPage() {
         });
 
         autoTable(doc, {
-            startY: 75,
+            startY: 95,
             head: [['Date', 'Type', 'Description', 'NGN Amount', 'AED Amount']],
             body: tableRows,
             theme: 'striped',
@@ -659,6 +726,7 @@ export default function ReportsPage() {
                         </div>
                         <div className="report-select-wrapper">
                             <select className="report-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
+                                <option>This Month</option>
                                 <option>Last Month</option>
                                 <option>Last 3 Months</option>
                                 <option>Year to Date</option>
