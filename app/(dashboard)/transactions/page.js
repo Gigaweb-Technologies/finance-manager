@@ -410,6 +410,7 @@ export default function TransactionsPage() {
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>TRANSACTION ID</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>DATE</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>CLIENT</th>
+                <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>SENDER / RECIPIENT</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>TYPE</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>SOURCE AMOUNT</th>
                 <th style={{ padding: '1.25rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '2px solid var(--border-color)', whiteSpace: 'nowrap' }}>CLIENT AMOUNT</th>
@@ -433,6 +434,10 @@ export default function TransactionsPage() {
                       </div>
                       <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{tx.client_name}</div>
                     </div>
+                  </td>
+                  <td style={{ padding: '1.25rem 1.5rem' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{tx.recipient || '-'}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tx.description || tx.narration || ''}</div>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem' }}>
                     <span style={tx.type === 'IN' ? { background: '#ecfdf5', color: '#10b981', border: '1px solid #d1fae5', padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.03em' } : { background: '#fff1f2', color: '#e11d48', border: '1px solid #ffe4e6', padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.03em' }}>

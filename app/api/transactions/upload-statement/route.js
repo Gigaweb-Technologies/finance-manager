@@ -39,6 +39,18 @@ export async function POST(request) {
 
         const lines = text.split('\n');
         const extractedTransactions = [];
+        const idCounts = {};
+
+        const assignUniqueId = (tx) => {
+            const baseId = generateDeterministicId(tx);
+            if (idCounts[baseId]) {
+                tx.transaction_unique_id = `${baseId}-${idCounts[baseId]}`;
+                idCounts[baseId]++;
+            } else {
+                tx.transaction_unique_id = baseId;
+                idCounts[baseId] = 1;
+            }
+        };
 
         const dateRegex = /\d{4}-\d{2}-\d{2}|\d{1,2}[-/][A-Za-z]{3}[-/](?:19|20)\d{2}|\d{1,2}[-/][A-Za-z]{3}[-/]\d{2}|\d{1,2}[-/]\d{1,2}[-/](?:19|20)\d{2}/;
         const dateRegexGlobal = new RegExp(dateRegex.source, 'g');
@@ -92,7 +104,7 @@ export async function POST(request) {
                             sender: normalizeSenderName(currentNarration),
                             type: 'IN'
                         };
-                        transaction.transaction_unique_id = generateDeterministicId(transaction);
+                        assignUniqueId(transaction);
                         extractedTransactions.push(transaction);
                     }
                 } else {
@@ -131,7 +143,7 @@ export async function POST(request) {
                                         sender: normalizeSenderName(currentNarration),
                                         type: 'IN'
                                     };
-                                    transaction.transaction_unique_id = generateDeterministicId(transaction);
+                                    assignUniqueId(transaction);
                                     extractedTransactions.push(transaction);
                                 }
                             }

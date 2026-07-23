@@ -126,6 +126,7 @@ const StatementUploadModal = ({ isOpen, onClose, clients, onTransactionsAdded })
                     amount_naira: tx.amount_naira,
                     amount_aed: parseFloat((tx.amount_naira / parseFloat(rates[tx.date.split('T')[0]] || 1650)).toFixed(2)),
                     exchange_rate: parseFloat(rates[tx.date.split('T')[0]] || 1650),
+                    recipient: tx.sender,
                     description: tx.narration,
                     transaction_unique_id: tx.transaction_unique_id,
                     date: tx.date

@@ -366,14 +366,15 @@ export default function ReportsPage() {
     // ── Export Analytics ──────────────────────────────────────────────────
     const handleExportCSV = () => {
         if (filteredTransactions.length === 0) return;
-        const headers = ['Date', 'Time', 'Client/Counterparty', 'Recipient/Narration', 'Type', 'Amount (NGN)', 'Balance Effect (AED)', 'Unique ID'];
+        const headers = ['Date', 'Time', 'Client', 'Sender/Recipient', 'Description', 'Type', 'Amount (NGN)', 'Balance Effect (AED)', 'Unique ID'];
         const rows = filteredTransactions.map(tx => {
             const d = new Date(tx.date);
             return [
                 d.toLocaleDateString(),
                 d.toLocaleTimeString(),
                 `"${(tx.client_name || '').replace(/"/g, '""')}"`,
-                `"${(tx.recipient || tx.narration || '').replace(/"/g, '""')}"`,
+                `"${(tx.recipient || '').replace(/"/g, '""')}"`,
+                `"${(tx.description || tx.narration || '').replace(/"/g, '""')}"`,
                 tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
                 tx.amount_naira || '',
                 `${tx.type === 'IN' ? '+' : '-'}${tx.amount_aed}`,
@@ -452,7 +453,8 @@ export default function ReportsPage() {
                 new Date(tx.date).toLocaleDateString('en-GB'),
                 isOut ? 'PAYOUT' : 'INFLOW',
                 tx.client_name || '-',
-                tx.recipient || tx.narration || '-',
+                tx.recipient || '-',
+                tx.description || tx.narration || '-',
                 tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
                 {
                     content: `${isOut ? '-' : '+'}${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
@@ -463,18 +465,19 @@ export default function ReportsPage() {
 
         autoTable(doc, {
             startY: 95,
-            head: [['Date', 'Type', 'Client', 'Description', 'Amount (NGN)', 'AED Effect']],
+            head: [['Date', 'Type', 'Client', 'Sender/Recipient', 'Description', 'Amount (NGN)', 'AED Effect']],
             body: tableRows,
             theme: 'striped',
             headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontSize: 9 },
             bodyStyles: { fontSize: 8 },
             columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 'auto' },
-                4: { cellWidth: 30, halign: 'right' },
-                5: { cellWidth: 30, halign: 'right' }
+                0: { cellWidth: 22 },
+                1: { cellWidth: 18 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 'auto' },
+                5: { cellWidth: 25, halign: 'right' },
+                6: { cellWidth: 25, halign: 'right' }
             },
             margin: { top: 20 },
             didDrawPage: (data) => {
@@ -490,10 +493,10 @@ export default function ReportsPage() {
     // ── Export statement CSV ───────────────────────────────────────────────
     const handleExportStatement = () => {
         if (statementDays.length === 0) return;
-        const rows = ['Date,Client,Type,Recipient/Narration,Naira Amount,AED Amount,Unique ID'];
+        const rows = ['Date,Client,Type,Sender/Recipient,Description,Naira Amount,AED Amount,Unique ID'];
 
         if (statementData.balanceForward !== 0) {
-            rows.push(['Balance Brought Forward', '', '', '', '', statementData.balanceForward.toFixed(2), ''].join(','));
+            rows.push(['Balance Brought Forward', '', '', '', '', '', statementData.balanceForward.toFixed(2), ''].join(','));
             rows.push('');
         }
 
@@ -505,7 +508,8 @@ export default function ReportsPage() {
                     d.toLocaleDateString(),
                     `"${(tx.client_name || '').replace(/"/g, '""')}"`,
                     tx.type === 'IN' ? 'INFLOW' : 'PAYOUT',
-                    `"${(tx.recipient || tx.narration || '').replace(/"/g, '""')}"`,
+                    `"${(tx.recipient || '').replace(/"/g, '""')}"`,
+                    `"${(tx.description || tx.narration || '').replace(/"/g, '""')}"`,
                     tx.amount_naira || '',
                     tx.amount_aed || '',
                     tx.transaction_unique_id || tx.id
@@ -514,25 +518,25 @@ export default function ReportsPage() {
             if (allDayTx.length > 0) {
                 rows.push([
                     `DAY TOTAL NGN (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`,
-                    '', '', '',
+                    '', '', '', '',
                     day.dayTotalNaira,
                     '',
                     ''
                 ].join(','));
                 rows.push([
                     `DAY TOTAL AED (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`,
-                    '', '', '',
+                    '', '', '', '',
                     '',
                     day.dayTotal.toFixed(2),
                     ''
                 ].join(','));
                 rows.push([
-                    'RUNNING NET BALANCE', '', '', '', '', day.mainTotal.toFixed(2), ''
+                    'RUNNING NET BALANCE', '', '', '', '', '', day.mainTotal.toFixed(2), ''
                 ].join(','));
                 rows.push('');
             }
         });
-        rows.push(['PERIOD FINAL NET BALANCE', '', '', '', '', (statementDays[statementDays.length - 1]?.mainTotal || 0).toFixed(2), ''].join(','));
+        rows.push(['PERIOD FINAL NET BALANCE', '', '', '', '', '', (statementDays[statementDays.length - 1]?.mainTotal || 0).toFixed(2), ''].join(','));
         const csv = rows.join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -606,7 +610,8 @@ export default function ReportsPage() {
                 tableRows.push([
                     new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
                     isOut ? 'PAYOUT' : 'INFLOW',
-                    tx.recipient || tx.narration || '-',
+                    tx.recipient || '-',
+                    tx.description || tx.narration || '-',
                     tx.amount_naira ? tx.amount_naira.toLocaleString() : '-',
                     {
                         content: isOut ? `-${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `+${tx.amount_aed.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
@@ -618,12 +623,12 @@ export default function ReportsPage() {
             if (allDayTx.length > 0) {
                 // Day Total Rows
                 tableRows.push([
-                    { content: `Daily Totals (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`, colSpan: 3, styles: { fontStyle: 'bold', fillColor: [245, 243, 255] } },
+                    { content: `Daily Totals (${new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [245, 243, 255] } },
                     { content: day.dayTotalNaira.toLocaleString(), styles: { fontStyle: 'bold', fillColor: [245, 243, 255], halign: 'right' } },
                     { content: day.dayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { fontStyle: 'bold', fillColor: [245, 243, 255], halign: 'right' } }
                 ]);
                 tableRows.push([
-                    { content: 'RUNNING NET BALANCE', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', textColor: [124, 58, 237] } },
+                    { content: 'RUNNING NET BALANCE', colSpan: 5, styles: { fontStyle: 'bold', halign: 'right', textColor: [124, 58, 237] } },
                     { content: day.mainTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { fontStyle: 'bold', halign: 'right', textColor: [124, 58, 237] } }
                 ]);
             }
@@ -631,7 +636,7 @@ export default function ReportsPage() {
 
         autoTable(doc, {
             startY: 95,
-            head: [['Date', 'Type', 'Description', 'NGN Amount', 'AED Amount']],
+            head: [['Date', 'Type', 'Sender/Recipient', 'Description', 'NGN Amount', 'AED Amount']],
             body: tableRows,
             theme: 'striped',
             headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontSize: 9 },
@@ -639,9 +644,10 @@ export default function ReportsPage() {
             columnStyles: {
                 0: { cellWidth: 20 },
                 1: { cellWidth: 20 },
-                2: { cellWidth: 'auto' },
-                3: { cellWidth: 30, halign: 'right' },
-                4: { cellWidth: 30, halign: 'right' }
+                2: { cellWidth: 35 },
+                3: { cellWidth: 'auto' },
+                4: { cellWidth: 25, halign: 'right' },
+                5: { cellWidth: 25, halign: 'right' }
             },
             margin: { top: 20 },
             didDrawPage: (data) => {
