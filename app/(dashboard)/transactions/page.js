@@ -203,6 +203,20 @@ export default function TransactionsPage() {
         doc.save(`Transactions_${rangeStr}_${new Date().toISOString().slice(0, 10)}.pdf`);
     };
 
+    // statsTransactions: date-filtered only (no typeFilter) — used for the summary stat cards
+    // so the card totals always reflect the true breakdown for the selected period,
+    // regardless of which type filter is active on the table.
+    const statsTransactions = useMemo(() => {
+        return allTransactions.filter(t => {
+            let matchesDate = true;
+            if (dateRange) {
+                const txDate = new Date(t.date);
+                matchesDate = txDate >= dateRange.start && txDate <= dateRange.end;
+            }
+            return matchesDate;
+        });
+    }, [allTransactions, dateRange]);
+
     const filteredTransactions = useMemo(() => {
         return allTransactions.filter(t => {
             const matchesSearch = (t.client_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
@@ -225,13 +239,9 @@ export default function TransactionsPage() {
     }, [allTransactions, searchQuery, typeFilter, dateRange]);
 
     const stats = useMemo(() => {
-        const totalInflowsCount = filteredTransactions.filter(t => t.type === 'IN').length;
-        const totalPayoutsCount = filteredTransactions.filter(t => t.type === 'OUT').length;
-        const totalTransactionsCount = filteredTransactions.length;
-
-        // Simulating some pending transactions based on a random string or status if present
-        // Since original logic didn't easily have 'pending' status in standard filtered list, let's mock a fixed count or compute it if exists.
-        const pendingReviewCount = filteredTransactions.filter(t => t.status === 'PENDING' || !t.transaction_unique_id).length;
+        const totalInflowsCount = statsTransactions.filter(t => t.type === 'IN').length;
+        const totalPayoutsCount = statsTransactions.filter(t => t.type === 'OUT').length;
+        const totalTransactionsCount = statsTransactions.length;
 
         const inflowPercentage = totalTransactionsCount ? ((totalInflowsCount / totalTransactionsCount) * 100).toFixed(1) : 0;
         const payoutPercentage = totalTransactionsCount ? ((totalPayoutsCount / totalTransactionsCount) * 100).toFixed(1) : 0;
@@ -243,7 +253,7 @@ export default function TransactionsPage() {
             totalPayouts: totalPayoutsCount,
             payoutPercentage: payoutPercentage
         };
-    }, [filteredTransactions]);
+    }, [statsTransactions]);
 
     if (loading) return <div>Loading Transactions...</div>;
 
